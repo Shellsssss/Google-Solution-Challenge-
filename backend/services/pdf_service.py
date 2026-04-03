@@ -1,9 +1,8 @@
 """
 PDF report generator for JanArogya screening results.
-Single-page A4 portrait layout with multi-language font support.
-Fonts: Noto Sans (EN), Noto Sans Devanagari (HI), Noto Sans Tamil (TA), Noto Sans Telugu (TE).
+A4 portrait layout with Gemini-generated personalised narrative.
+Fonts: Noto Sans Devanagari (HI), Noto Sans Tamil (TA), Noto Sans Telugu (TE).
 """
-import base64
 import io
 import logging
 import os
@@ -20,33 +19,42 @@ from reportlab.pdfgen import canvas
 logger = logging.getLogger(__name__)
 
 # ── Page geometry ─────────────────────────────────────────────────────────────
-PAGE_W, PAGE_H = A4          # 595.27 × 841.89 pt
-MARGIN = 42.5                # ~15mm
-CONTENT_W = PAGE_W - 2 * MARGIN
+PAGE_W, PAGE_H = A4
+MARGIN     = 42.5
+CONTENT_W  = PAGE_W - 2 * MARGIN
 
 # ── Palette ───────────────────────────────────────────────────────────────────
-C_NAVY     = colors.HexColor("#1E3A5F")
-C_WHITE    = colors.white
-C_BLACK    = colors.black
-C_GRAY     = colors.HexColor("#616161")
-C_LGRAY    = colors.HexColor("#F5F5F5")
-C_YELLOW   = colors.HexColor("#FFF8E1")
-C_YAMBER   = colors.HexColor("#F9A825")
+C_NAVY   = colors.HexColor("#1E3A5F")
+C_TEAL   = colors.HexColor("#0D9488")
+C_WHITE  = colors.white
+C_BLACK  = colors.black
+C_GRAY   = colors.HexColor("#616161")
+C_LGRAY  = colors.HexColor("#F5F5F5")
+C_YELLOW = colors.HexColor("#FFF8E1")
+C_YAMBER = colors.HexColor("#F9A825")
+C_GREEN  = colors.HexColor("#059669")
+C_RED    = colors.HexColor("#DC2626")
+C_ORANGE = colors.HexColor("#D97706")
 
 RISK_COLORS = {
-    "HIGH_RISK":  (colors.HexColor("#DC2626"), colors.HexColor("#FEE2E2")),  # border, bg
-    "LOW_RISK":   (colors.HexColor("#059669"), colors.HexColor("#D1FAE5")),
-    "INVALID":    (colors.HexColor("#D97706"), colors.HexColor("#FEF3C7")),
-}
-RISK_TEXT_COLORS = {
-    "HIGH_RISK":  colors.HexColor("#DC2626"),
-    "LOW_RISK":   colors.HexColor("#059669"),
-    "INVALID":    colors.HexColor("#D97706"),
+    "HIGH_RISK": (C_RED,    colors.HexColor("#FEE2E2")),
+    "LOW_RISK":  (C_GREEN,  colors.HexColor("#D1FAE5")),
+    "INVALID":   (C_ORANGE, colors.HexColor("#FEF3C7")),
 }
 RISK_LABELS = {
-    "HIGH_RISK": "HIGH RISK",
-    "LOW_RISK":  "LOW RISK",
-    "INVALID":   "INVALID",
+    "HIGH_RISK": "HIGH RISK — See a Doctor Soon",
+    "LOW_RISK":  "LOW RISK — Continue Monitoring",
+    "INVALID":   "INVALID — Photo Not Suitable",
+}
+URGENCY_COLORS = {
+    "URGENT":  C_RED,
+    "SOON":    C_ORANGE,
+    "ROUTINE": C_GREEN,
+}
+URGENCY_LABELS = {
+    "URGENT":  "URGENT — Visit doctor within 48 hours",
+    "SOON":    "SOON — Visit doctor within 1 week",
+    "ROUTINE": "ROUTINE — Next scheduled check-up",
 }
 
 # ── Font setup ────────────────────────────────────────────────────────────────
@@ -69,43 +77,33 @@ FONTS = {
         "url":  "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSansTelugu/NotoSansTelugu-Regular.ttf",
     },
 }
-
 _font_ready: dict[str, bool] = {}
 
 
 def _setup_font(lang: str) -> bool:
-    """Download and register a font. Returns True if ready."""
     if lang in _font_ready:
         return _font_ready[lang]
     if lang not in FONTS:
-        return True  # English uses built-in Helvetica
-
+        return True
     info = FONTS[lang]
     os.makedirs(ASSETS_DIR, exist_ok=True)
-
     if not os.path.exists(info["path"]):
         try:
-            logger.info("Downloading font for lang=%s …", lang)
             urllib.request.urlretrieve(info["url"], info["path"])
-            logger.info("Font saved: %s", info["path"])
         except Exception as exc:
-            logger.warning("Font download failed for %s: %s — using fallback", lang, exc)
+            logger.warning("Font download failed for %s: %s", lang, exc)
             _font_ready[lang] = False
             return False
-
     try:
         pdfmetrics.registerFont(TTFont(info["name"], info["path"]))
         _font_ready[lang] = True
-        logger.info("Font registered: %s", info["name"])
     except Exception as exc:
         logger.warning("Font registration failed for %s: %s", lang, exc)
         _font_ready[lang] = False
-
     return _font_ready[lang]
 
 
 def _get_font(lang: str) -> str:
-    """Return the registered font name for a language."""
     if lang in FONTS and _setup_font(lang):
         return FONTS[lang]["name"]
     return "Helvetica"
@@ -119,7 +117,7 @@ def _wrap(c: canvas.Canvas, text: str, max_w: float, font: str, size: float) -> 
     cur: list[str] = []
     cur_w = 0.0
     for word in words:
-        w = c.stringWidth(word, font, size)
+        w   = c.stringWidth(word, font, size)
         gap = c.stringWidth(" ", font, size) if cur else 0.0
         if cur and cur_w + gap + w > max_w:
             lines.append(" ".join(cur))
@@ -132,10 +130,9 @@ def _wrap(c: canvas.Canvas, text: str, max_w: float, font: str, size: float) -> 
     return lines or [""]
 
 
-def _text_block(c: canvas.Canvas, text: str, x: float, y: float,
-                max_w: float, font: str, size: float,
-                leading: float = 14.0, color=colors.black) -> float:
-    """Draw word-wrapped text, return y below last line."""
+def _block(c: canvas.Canvas, text: str, x: float, y: float,
+           max_w: float, font: str, size: float,
+           leading: float = 13.0, color=colors.black) -> float:
     if not text:
         return y
     c.setFillColor(color)
@@ -146,32 +143,48 @@ def _text_block(c: canvas.Canvas, text: str, x: float, y: float,
     return y
 
 
-def _text_height(c: canvas.Canvas, text: str, max_w: float,
-                 font: str, size: float, leading: float = 14.0) -> float:
-    if not text:
-        return 0.0
-    return len(_wrap(c, text, max_w, font, size)) * leading
+def _section_heading(c: canvas.Canvas, label: str, y: float,
+                     x: float = None, width: float = None) -> float:
+    x = x or MARGIN
+    width = width or CONTENT_W
+    c.setFont("Helvetica-Bold", 8.5)
+    c.setFillColor(C_NAVY)
+    c.drawString(x, y, label)
+    y -= 3
+    c.setStrokeColor(C_NAVY)
+    c.setLineWidth(0.4)
+    c.line(x, y, x + width, y)
+    return y - 9
+
+
+def _bullet_list(c: canvas.Canvas, items: list[str], x: float, y: float,
+                 max_w: float, font: str = "Helvetica", size: float = 8.0,
+                 color=C_BLACK, leading: float = 12.0) -> float:
+    for item in items:
+        if not item:
+            continue
+        # Draw bullet
+        c.setFillColor(C_TEAL)
+        c.setFont("Helvetica-Bold", 9)
+        c.drawString(x, y, "\u2022")
+        # Draw text
+        c.setFillColor(color)
+        c.setFont(font, size)
+        y = _block(c, item, x + 12, y, max_w - 12, font, size,
+                   leading=leading, color=color)
+        y -= 3
+    return y
 
 
 # ── Main generator ────────────────────────────────────────────────────────────
 
 def generate_report(data: dict) -> bytes:
-    """
-    Build a single-patient A4 screening report. Returns PDF bytes.
-
-    Expected keys in data:
-        report_id, user_name, phone_masked, scan_date, scan_time,
-        scan_type, risk_level, confidence, explanation_en,
-        explanation_local, local_language, concern,
-        questions_and_answers (list of {question, answer}),
-        image_bytes (bytes|None), nearest_centres (list of dicts)
-    """
-    # ── Setup fonts ────────────────────────────────────────────────────────────
+    """Build A4 screening report with Gemini narrative. Returns PDF bytes."""
     for lang in ("hi", "ta", "te"):
         _setup_font(lang)
 
-    # ── Extract data ───────────────────────────────────────────────────────────
-    report_id   = data.get("report_id", "CS-XXXXXXXX")
+    # Extract
+    report_id   = data.get("report_id", "JA-XXXXXXXX")
     user_name   = data.get("user_name", "Anonymous") or "Anonymous"
     phone       = data.get("phone_masked", "XXXXXXXXXX") or "XXXXXXXXXX"
     scan_date   = data.get("scan_date", datetime.now().strftime("%d/%m/%Y"))
@@ -179,307 +192,304 @@ def generate_report(data: dict) -> bytes:
     scan_type   = (data.get("scan_type") or "oral").title()
     risk_level  = data.get("risk_level", "INVALID")
     confidence  = float(data.get("confidence", 0.0))
-    exp_en      = data.get("explanation_en", "")
-    exp_local   = data.get("explanation_local", "")
     local_lang  = data.get("local_language", "en")
-    concern     = data.get("concern", "")
+
+    # Gemini narrative
+    summary_en  = data.get("summary_en") or data.get("explanation_en", "")
+    summary_loc = data.get(f"summary_{local_lang}") or data.get("explanation_local", "")
+    next_steps  = data.get("next_steps", [])
+    tell_doctor = data.get("tell_doctor", [])
+    lifestyle   = data.get("lifestyle_tip", "")
+    urgency     = data.get("urgency", "ROUTINE")
+
     qas         = data.get("questions_and_answers", [])
     img_bytes   = data.get("image_bytes")
     centres     = data.get("nearest_centres", []) or []
 
     risk_border, risk_bg = RISK_COLORS.get(risk_level, RISK_COLORS["INVALID"])
-    risk_text   = RISK_TEXT_COLORS.get(risk_level, C_GRAY)
-    risk_label  = RISK_LABELS.get(risk_level, risk_level)
-    local_font  = _get_font(local_lang)
+    local_font = _get_font(local_lang)
 
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=A4)
     c.setTitle(f"JanArogya Screening Report — {report_id}")
 
     # ══════════════════════════════════════════════════════════════════════════
-    # SECTION 1 — HEADER
+    # HEADER
     # ══════════════════════════════════════════════════════════════════════════
-    HDR_H = 70.0
+    HDR_H = 72.0
     c.setFillColor(C_NAVY)
     c.rect(0, PAGE_H - HDR_H, PAGE_W, HDR_H, fill=1, stroke=0)
 
-    # Left: App name
+    # Teal accent stripe
+    c.setFillColor(C_TEAL)
+    c.rect(0, PAGE_H - HDR_H, 6, HDR_H, fill=1, stroke=0)
+
     c.setFillColor(C_WHITE)
     c.setFont("Helvetica-Bold", 22)
     c.drawString(MARGIN, PAGE_H - 26, "JanArogya")
     c.setFont("Helvetica", 10)
-    c.drawString(MARGIN, PAGE_H - 41, "\u091C\u0928\u0906\u0930\u094B\u0917\u094D\u092F")  # जनआरोग्य
+    c.drawString(MARGIN, PAGE_H - 40, "\u091C\u0928\u0906\u0930\u094B\u0917\u094D\u092F")
     c.setFont("Helvetica-Oblique", 8)
-    c.drawString(MARGIN, PAGE_H - 55, "AI-Powered Cancer Screening")
+    c.drawString(MARGIN, PAGE_H - 53, "AI-Powered Cancer Screening  |  Serving Rural India")
 
-    # Right: Report metadata
     c.setFont("Helvetica", 8)
     c.drawRightString(PAGE_W - MARGIN, PAGE_H - 22, f"Report ID: {report_id}")
-    c.drawRightString(PAGE_W - MARGIN, PAGE_H - 34, f"Scan Date: {scan_date}")
-    c.drawRightString(PAGE_W - MARGIN, PAGE_H - 46, f"Scan Time: {scan_time}")
-    c.drawRightString(PAGE_W - MARGIN, PAGE_H - 58, f"Scan Type: {scan_type}")
+    c.drawRightString(PAGE_W - MARGIN, PAGE_H - 34, f"Date: {scan_date}  {scan_time}")
+    c.drawRightString(PAGE_W - MARGIN, PAGE_H - 46, f"Scan Type: {scan_type}")
+    c.drawRightString(PAGE_W - MARGIN, PAGE_H - 58, f"Patient: {user_name}")
 
-    # Divider
-    y = PAGE_H - HDR_H - 4
+    y = PAGE_H - HDR_H - 6
     c.setStrokeColor(colors.HexColor("#E5E7EB"))
-    c.setLineWidth(0.5)
+    c.setLineWidth(0.4)
     c.line(MARGIN, y, PAGE_W - MARGIN, y)
     y -= 8
 
     # ══════════════════════════════════════════════════════════════════════════
-    # SECTION 2 — DISCLAIMER BOX
+    # DISCLAIMER
     # ══════════════════════════════════════════════════════════════════════════
-    disc_text = (
-        "IMPORTANT: This report is generated by an AI screening tool and is NOT a medical diagnosis. "
-        "Always consult a qualified doctor before making any health decisions."
-    )
-    disc_font  = "Helvetica-Oblique"
-    disc_size  = 7.5
-    disc_lines = _wrap(c, disc_text, CONTENT_W - 24, disc_font, disc_size)
-    disc_h     = len(disc_lines) * 11 + 14
+    disc = ("IMPORTANT: This report is AI-generated and is NOT a medical diagnosis. "
+            "Always consult a qualified doctor before making any health decision.")
+    disc_lines = _wrap(c, disc, CONTENT_W - 24, "Helvetica-Oblique", 7.5)
+    disc_h = len(disc_lines) * 11 + 14
 
     c.setFillColor(C_YELLOW)
     c.setStrokeColor(C_YAMBER)
     c.setLineWidth(1.0)
     c.roundRect(MARGIN, y - disc_h, CONTENT_W, disc_h, 4, fill=1, stroke=1)
-
     c.setFillColor(colors.HexColor("#92400E"))
     c.setFont("Helvetica-Bold", 8)
-    c.drawString(MARGIN + 8, y - 10, "⚠  IMPORTANT DISCLAIMER")
+    c.drawString(MARGIN + 8, y - 10, "\u26a0  IMPORTANT DISCLAIMER")
     ty = y - 21
-    c.setFont(disc_font, disc_size)
+    c.setFont("Helvetica-Oblique", 7.5)
     for line in disc_lines:
         c.drawString(MARGIN + 8, ty, line)
         ty -= 11
-    y = y - disc_h - 8
+    y -= disc_h + 10
 
     # ══════════════════════════════════════════════════════════════════════════
-    # SECTION 3 — TWO COLUMN LAYOUT
+    # TWO-COLUMN LAYOUT
     # ══════════════════════════════════════════════════════════════════════════
-    COL_L_W  = CONTENT_W * 0.60
-    COL_R_W  = CONTENT_W * 0.40 - 8
-    COL_R_X  = MARGIN + COL_L_W + 8
-    col_y_l  = y
-    col_y_r  = y
+    COL_L_W = CONTENT_W * 0.57
+    COL_R_W = CONTENT_W * 0.43 - 8
+    COL_R_X = MARGIN + COL_L_W + 8
+    ly = y   # left column y
+    ry = y   # right column y
 
-    # ── LEFT COLUMN ────────────────────────────────────────────────────────────
-
-    # User Details box
+    # ── LEFT: Patient info ────────────────────────────────────────────────────
     detail_lines = [
-        f"Name:      {user_name}",
-        f"Phone:     {phone}",
-        f"Language:  {local_lang.upper()}",
-        f"Generated: {scan_date} {scan_time}",
+        f"Name:          {user_name}",
+        f"Phone:         {phone}",
+        f"Language:      {local_lang.upper()}",
+        f"Scan Date:     {scan_date}  {scan_time}",
     ]
     box_h = len(detail_lines) * 13 + 16
     c.setFillColor(C_LGRAY)
     c.setStrokeColor(colors.HexColor("#E5E7EB"))
-    c.setLineWidth(0.5)
-    c.roundRect(MARGIN, col_y_l - box_h, COL_L_W, box_h, 4, fill=1, stroke=1)
-
+    c.setLineWidth(0.4)
+    c.roundRect(MARGIN, ly - box_h, COL_L_W, box_h, 4, fill=1, stroke=1)
     c.setFont("Helvetica-Bold", 8)
     c.setFillColor(C_NAVY)
-    c.drawString(MARGIN + 6, col_y_l - 10, "PATIENT DETAILS")
-    ty = col_y_l - 22
+    c.drawString(MARGIN + 6, ly - 10, "PATIENT DETAILS")
+    ty = ly - 22
     c.setFont("Helvetica", 8)
     c.setFillColor(C_BLACK)
     for line in detail_lines:
         c.drawString(MARGIN + 6, ty, line)
         ty -= 13
-    col_y_l = col_y_l - box_h - 8
+    ly -= box_h + 8
 
-    # Risk Assessment box
-    conf_pct = f"{confidence * 100:.1f}%"
-    risk_box_h = 62.0
+    # ── LEFT: Risk assessment ─────────────────────────────────────────────────
+    risk_box_h = 68.0
     c.setFillColor(risk_bg)
     c.setStrokeColor(risk_border)
     c.setLineWidth(2.0)
-    c.roundRect(MARGIN, col_y_l - risk_box_h, COL_L_W, risk_box_h, 4, fill=1, stroke=1)
+    c.roundRect(MARGIN, ly - risk_box_h, COL_L_W, risk_box_h, 4, fill=1, stroke=1)
 
-    c.setFillColor(risk_text)
-    c.setFont("Helvetica-Bold", 18)
-    c.drawString(MARGIN + 10, col_y_l - 24, risk_label)
-    c.setFont("Helvetica", 9)
-    c.drawString(MARGIN + 10, col_y_l - 38, f"Confidence: {conf_pct}")
+    c.setFillColor(risk_border)
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(MARGIN + 10, ly - 20, RISK_LABELS.get(risk_level, risk_level))
 
-    # Confidence progress bar
-    bar_x   = MARGIN + 10
-    bar_y   = col_y_l - 52
-    bar_w   = COL_L_W - 20
-    bar_h   = 6.0
+    c.setFont("Helvetica", 8.5)
+    c.setFillColor(C_GRAY)
+    c.drawString(MARGIN + 10, ly - 34, f"AI Confidence: {confidence * 100:.1f}%")
+
+    # Confidence bar
+    bar_x, bar_y, bar_w, bar_h = MARGIN + 10, ly - 47, COL_L_W - 20, 7.0
     c.setFillColor(colors.HexColor("#E5E7EB"))
     c.roundRect(bar_x, bar_y, bar_w, bar_h, 3, fill=1, stroke=0)
-    fill_w = bar_w * confidence
+    fill_w = bar_w * min(confidence, 1.0)
     if fill_w > 0:
-        c.setFillColor(risk_text)
+        c.setFillColor(risk_border)
         c.roundRect(bar_x, bar_y, fill_w, bar_h, 3, fill=1, stroke=0)
 
-    col_y_l = col_y_l - risk_box_h - 8
+    # Urgency badge
+    urg_color = URGENCY_COLORS.get(urgency, C_ORANGE)
+    urg_label = URGENCY_LABELS.get(urgency, urgency)
+    c.setFillColor(urg_color)
+    c.setFont("Helvetica-Bold", 7.5)
+    c.drawString(MARGIN + 10, ly - 60, f"\u23f0  {urg_label}")
 
-    # AI Explanation
-    c.setFont("Helvetica-Bold", 8)
-    c.setFillColor(C_NAVY)
-    c.drawString(MARGIN, col_y_l, "AI EXPLANATION")
-    col_y_l -= 4
-    c.setStrokeColor(C_NAVY)
-    c.setLineWidth(0.5)
-    c.line(MARGIN, col_y_l, MARGIN + COL_L_W, col_y_l)
-    col_y_l -= 11
+    ly -= risk_box_h + 10
 
-    if exp_en:
-        col_y_l = _text_block(c, exp_en, MARGIN, col_y_l, COL_L_W,
-                              "Helvetica", 8, leading=12)
-        col_y_l -= 4
+    # ── LEFT: AI Summary (English) ────────────────────────────────────────────
+    ly = _section_heading(c, "AI SCREENING SUMMARY", ly)
+    if summary_en:
+        ly = _block(c, summary_en, MARGIN, ly, COL_L_W, "Helvetica", 8.5,
+                    leading=13, color=C_BLACK)
+        ly -= 4
 
-    if exp_local and local_lang != "en" and local_font != "Helvetica":
-        col_y_l = _text_block(c, exp_local, MARGIN, col_y_l, COL_L_W,
-                              local_font, 8, leading=12)
-        col_y_l -= 4
-    elif exp_local and local_lang == "hi":
-        col_y_l = _text_block(c, exp_local, MARGIN, col_y_l, COL_L_W,
-                              _get_font("hi"), 8, leading=12)
-        col_y_l -= 4
+    # Local language summary
+    if summary_loc and local_lang != "en" and local_font != "Helvetica":
+        c.setStrokeColor(colors.HexColor("#E5E7EB"))
+        c.setLineWidth(0.4)
+        c.line(MARGIN, ly, MARGIN + COL_L_W, ly)
+        ly -= 8
+        ly = _block(c, summary_loc, MARGIN, ly, COL_L_W, local_font, 8.5,
+                    leading=13, color=C_GRAY)
+        ly -= 4
 
-    col_y_l -= 4
+    ly -= 4
 
-    # Concern box
-    if concern:
-        c.setFont("Helvetica-Bold", 8)
-        c.setFillColor(C_NAVY)
-        c.drawString(MARGIN, col_y_l, "WHAT THIS MEANS")
-        col_y_l -= 4
-        c.setStrokeColor(C_NAVY)
+    # ── LEFT: What to tell your doctor ───────────────────────────────────────
+    if tell_doctor:
+        ly = _section_heading(c, "WHAT TO TELL YOUR DOCTOR", ly)
+        ly = _bullet_list(c, tell_doctor, MARGIN, ly, COL_L_W)
+        ly -= 4
+
+    # ── LEFT: Lifestyle tip ───────────────────────────────────────────────────
+    if lifestyle:
+        tip_lines = _wrap(c, lifestyle, COL_L_W - 20, "Helvetica-Oblique", 8)
+        tip_h = len(tip_lines) * 12 + 14
+        c.setFillColor(colors.HexColor("#EFF6FF"))
+        c.setStrokeColor(colors.HexColor("#BFDBFE"))
         c.setLineWidth(0.5)
-        c.line(MARGIN, col_y_l, MARGIN + COL_L_W, col_y_l)
-        col_y_l -= 11
-        col_y_l = _text_block(c, concern, MARGIN, col_y_l, COL_L_W,
-                              "Helvetica", 8, leading=12, color=C_GRAY)
-        col_y_l -= 8
+        c.roundRect(MARGIN, ly - tip_h, COL_L_W, tip_h, 4, fill=1, stroke=1)
+        c.setFont("Helvetica-Bold", 8)
+        c.setFillColor(colors.HexColor("#1E40AF"))
+        c.drawString(MARGIN + 8, ly - 10, "\U0001f4a1  HEALTH TIP")
+        ty = ly - 21
+        c.setFont("Helvetica-Oblique", 8)
+        c.setFillColor(colors.HexColor("#1E40AF"))
+        for line in tip_lines:
+            c.drawString(MARGIN + 8, ty, line)
+            ty -= 12
+        ly -= tip_h + 6
 
-    # ── RIGHT COLUMN ───────────────────────────────────────────────────────────
-
-    # Uploaded image
-    img_display_h = 110.0
+    # ── RIGHT: Scanned image ──────────────────────────────────────────────────
+    IMG_H = 115.0
     if img_bytes:
         try:
             img_reader = ImageReader(io.BytesIO(img_bytes))
-            img_y = col_y_r - img_display_h
+            iy = ry - IMG_H
             c.setStrokeColor(colors.HexColor("#E5E7EB"))
             c.setLineWidth(0.5)
-            c.roundRect(COL_R_X, img_y, COL_R_W, img_display_h, 4, fill=0, stroke=1)
-            c.drawImage(img_reader, COL_R_X + 2, img_y + 2,
-                       COL_R_W - 4, img_display_h - 4,
-                       preserveAspectRatio=True, mask="auto")
+            c.roundRect(COL_R_X, iy, COL_R_W, IMG_H, 4, fill=0, stroke=1)
+            c.drawImage(img_reader, COL_R_X + 2, iy + 2, COL_R_W - 4, IMG_H - 4,
+                        preserveAspectRatio=True, mask="auto")
             c.setFont("Helvetica", 7)
             c.setFillColor(C_GRAY)
-            c.drawCentredString(COL_R_X + COL_R_W / 2, img_y - 8, "Uploaded Image")
-            col_y_r = img_y - 16
+            c.drawCentredString(COL_R_X + COL_R_W / 2, iy - 8, "Submitted Image")
+            ry = iy - 16
         except Exception as exc:
             logger.warning("Could not embed image: %s", exc)
-            col_y_r -= 10
     else:
-        col_y_r -= 10
+        ry -= 8
 
-    # Q&A
-    if qas:
-        c.setFont("Helvetica-Bold", 8)
-        c.setFillColor(C_NAVY)
-        c.drawString(COL_R_X, col_y_r, "PATIENT RESPONSES")
-        col_y_r -= 4
-        c.setStrokeColor(C_NAVY)
-        c.setLineWidth(0.5)
-        c.line(COL_R_X, col_y_r, COL_R_X + COL_R_W, col_y_r)
-        col_y_r -= 10
-
-        for qa in qas[:4]:
-            q_text = f"Q: {qa.get('question', '')}"
-            a_text = f"A: {qa.get('answer', '')}"
-            c.setFont("Helvetica-Bold", 7.5)
+    # ── RIGHT: Next steps ─────────────────────────────────────────────────────
+    if next_steps:
+        ry = _section_heading(c, "YOUR NEXT STEPS", ry, x=COL_R_X, width=COL_R_W)
+        for i, step in enumerate(next_steps[:4], 1):
+            if not step:
+                continue
+            # Numbered badge
+            c.setFillColor(C_TEAL)
+            c.circle(COL_R_X + 6, ry + 3, 5.5, fill=1, stroke=0)
+            c.setFillColor(C_WHITE)
+            c.setFont("Helvetica-Bold", 7)
+            c.drawCentredString(COL_R_X + 6, ry + 0.5, str(i))
+            # Step text
             c.setFillColor(C_BLACK)
-            col_y_r = _text_block(c, q_text, COL_R_X, col_y_r, COL_R_W,
-                                  "Helvetica-Bold", 7.5, leading=10)
-            c.setFont("Helvetica", 7.5)
-            c.setFillColor(C_GRAY)
-            col_y_r = _text_block(c, a_text, COL_R_X, col_y_r, COL_R_W,
-                                  "Helvetica", 7.5, leading=10)
-            col_y_r -= 4
+            c.setFont("Helvetica", 8)
+            ry = _block(c, step, COL_R_X + 16, ry, COL_R_W - 16, "Helvetica", 8,
+                        leading=11, color=C_BLACK)
+            ry -= 5
+
+    ry -= 4
+
+    # ── RIGHT: Patient Q&A ────────────────────────────────────────────────────
+    if qas:
+        ry = _section_heading(c, "PATIENT RESPONSES", ry, x=COL_R_X, width=COL_R_W)
+        for qa in qas[:3]:
+            q = qa.get("question", "")
+            a = qa.get("answer", "")
+            if q:
+                ry = _block(c, f"Q: {q}", COL_R_X, ry, COL_R_W,
+                            "Helvetica-Bold", 7.5, leading=10, color=C_NAVY)
+            if a:
+                ry = _block(c, f"A: {a}", COL_R_X, ry, COL_R_W,
+                            "Helvetica", 7.5, leading=10, color=C_GRAY)
+            ry -= 4
 
     # ══════════════════════════════════════════════════════════════════════════
-    # SECTION 4 — NEAREST CENTRES
+    # NEAREST CENTRES (full width below both columns)
     # ══════════════════════════════════════════════════════════════════════════
-    section_y = min(col_y_l, col_y_r) - 12
-    if section_y < MARGIN + 80:
-        section_y = MARGIN + 80  # Guard against overflow
+    section_y = min(ly, ry) - 12
+    if section_y < MARGIN + 70:
+        section_y = MARGIN + 70
 
     if centres:
-        c.setFont("Helvetica-Bold", 9)
-        c.setFillColor(C_NAVY)
-        c.drawString(MARGIN, section_y, "NEAREST SCREENING CENTRES")
-        section_y -= 4
-        c.setStrokeColor(C_NAVY)
-        c.setLineWidth(0.5)
-        c.line(MARGIN, section_y, PAGE_W - MARGIN, section_y)
-        section_y -= 10
-
-        centre_w = (CONTENT_W - 8) / 2
-        cx = [MARGIN, MARGIN + centre_w + 8]
-
+        section_y = _section_heading(c, "NEAREST CANCER SCREENING CENTRES", section_y)
+        cw = (CONTENT_W - 8) / min(len(centres), 2)
         for i, ctr in enumerate(centres[:2]):
-            bx = cx[i]
-            by = section_y
+            bx = MARGIN + i * (cw + 8)
             bh = 52.0
             c.setFillColor(C_LGRAY)
             c.setStrokeColor(colors.HexColor("#E5E7EB"))
-            c.setLineWidth(0.5)
-            c.roundRect(bx, by - bh, centre_w, bh, 4, fill=1, stroke=1)
+            c.setLineWidth(0.4)
+            c.roundRect(bx, section_y - bh, cw, bh, 4, fill=1, stroke=1)
 
             c.setFont("Helvetica-Bold", 8)
             c.setFillColor(C_NAVY)
-            name = (ctr.get("name") or "")[:35]
-            c.drawString(bx + 6, by - 12, name)
+            c.drawString(bx + 6, section_y - 12, (ctr.get("name") or "")[:38])
 
-            addr = (ctr.get("address") or "")[:45]
             c.setFont("Helvetica", 7.5)
             c.setFillColor(C_GRAY)
-            c.drawString(bx + 6, by - 23, addr)
+            c.drawString(bx + 6, section_y - 23, (ctr.get("address") or "")[:48])
 
             dist = ctr.get("distance_km")
             if dist is not None:
-                c.drawString(bx + 6, by - 34, f"Distance: {dist:.1f} km")
+                c.drawString(bx + 6, section_y - 34, f"Distance: {dist:.1f} km")
+            ph = ctr.get("phone")
+            if ph:
+                c.drawString(bx + 6, section_y - 45, f"Phone: {ph}")
 
-            phone = ctr.get("phone")
-            if phone:
-                c.drawString(bx + 6, by - 45, f"Phone: {phone}")
-
-        section_y = section_y - 52 - 8
+        section_y -= 52 + 8
 
     # ══════════════════════════════════════════════════════════════════════════
-    # SECTION 5 — FOOTER
+    # FOOTER
     # ══════════════════════════════════════════════════════════════════════════
-    FOOTER_H = 38.0
+    FOOTER_H = 42.0
     c.setFillColor(C_LGRAY)
     c.rect(0, 0, PAGE_W, FOOTER_H, fill=1, stroke=0)
-    c.setStrokeColor(colors.HexColor("#E5E7EB"))
-    c.setLineWidth(0.5)
-    c.line(0, FOOTER_H, PAGE_W, FOOTER_H)
+    c.setFillColor(C_TEAL)
+    c.rect(0, FOOTER_H, PAGE_W, 1.5, fill=1, stroke=0)
 
-    c.setFont("Helvetica-Bold", 8)
-    c.setFillColor(colors.HexColor("#DC2626"))
-    c.drawString(MARGIN, FOOTER_H - 12, "Cancer Helpline: 1800-11-2345  (Toll-Free, 24/7)")
+    c.setFont("Helvetica-Bold", 8.5)
+    c.setFillColor(C_RED)
+    c.drawString(MARGIN, FOOTER_H - 13, "\u260e  Cancer Helpline: 1800-11-2345   (Toll-Free, 24/7)")
 
     c.setFont("Helvetica-Oblique", 7.5)
     c.setFillColor(C_GRAY)
-    c.drawCentredString(PAGE_W / 2, FOOTER_H - 12,
-                        "Consult a real doctor before taking any action")
+    c.drawCentredString(PAGE_W / 2, FOOTER_H - 13, "Consult a real doctor before taking any action")
 
     c.setFont("Helvetica", 7)
     c.setFillColor(C_GRAY)
-    c.drawRightString(PAGE_W - MARGIN, FOOTER_H - 12,
-                      "Generated by JanArogya | janarogya.health")
+    c.drawRightString(PAGE_W - MARGIN, FOOTER_H - 13, f"Generated by JanArogya  |  Report {report_id}")
 
     c.setFont("Helvetica", 6.5)
-    c.drawCentredString(PAGE_W / 2, FOOTER_H - 26,
-                        "This report is for screening purposes only — not a clinical diagnosis")
+    c.setFillColor(C_GRAY)
+    c.drawCentredString(PAGE_W / 2, FOOTER_H - 27,
+                        "For screening purposes only — this is not a clinical diagnosis")
 
     c.save()
     return buf.getvalue()
