@@ -12,6 +12,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from services.gemini_service import generate_pdf_narrative
 from services.pdf_service import generate_report
 
 router = APIRouter()
@@ -40,13 +41,14 @@ class ReportRequest(BaseModel):
     phone_masked: Optional[str] = None
     scan_date: Optional[str] = None
     scan_time: Optional[str] = None
-    scan_type: str = "oral"   # "oral" | "skin" | "other"
-    risk_level: str           # "LOW_RISK" | "HIGH_RISK" | "INVALID"
+    scan_type: str = "oral"
+    risk_level: str               # "LOW_RISK" | "HIGH_RISK" | "INVALID"
     confidence: float = 0.0
-    explanation_en: str = ""
+    explanation_en: str = ""      # Gemini's short visual finding (used as context)
     explanation_local: str = ""
     local_language: str = "en"
     concern: str = ""
+    symptoms: Optional[dict] = None   # raw symptom answers {question: answer}
     questions_and_answers: list[QAItem] = []
     image_base64: Optional[str] = None
     nearest_centres: list[NearestCentre] = []
@@ -54,11 +56,9 @@ class ReportRequest(BaseModel):
 
 @router.post("/report/generate")
 async def generate(req: ReportRequest):
-    """Generate a PDF report and return a download URL."""
-    # Generate report ID
-    report_id = req.report_id or f"CS-{uuid.uuid4().hex[:8].upper()}"
+    """Generate a Gemini-enriched PDF report and return a download URL."""
+    report_id = req.report_id or f"JA-{uuid.uuid4().hex[:8].upper()}"
 
-    # Build scan date/time
     now = datetime.now()
     scan_date = req.scan_date or now.strftime("%d/%m/%Y")
     scan_time = req.scan_time or now.strftime("%I:%M %p")
@@ -72,7 +72,16 @@ async def generate(req: ReportRequest):
         except Exception:
             logger.warning("Could not decode image_base64 — PDF will have no image")
 
-    # Build data dict for pdf_service
+    # ── Generate rich Gemini narrative ─────────────────────────────────────────
+    narrative = await generate_pdf_narrative(
+        scan_type=req.scan_type,
+        risk_level=req.risk_level,
+        confidence=req.confidence,
+        symptoms=req.symptoms,
+        gemini_finding=req.explanation_en,
+    )
+
+    # ── Build data dict for pdf_service ────────────────────────────────────────
     data = {
         "report_id": report_id,
         "user_name": req.user_name or "Anonymous",
@@ -82,6 +91,16 @@ async def generate(req: ReportRequest):
         "scan_type": req.scan_type,
         "risk_level": req.risk_level,
         "confidence": req.confidence,
+        # Gemini narrative fields
+        "summary_en": narrative.get("summary_en", req.explanation_en),
+        "summary_hi": narrative.get("summary_hi", ""),
+        "summary_ta": narrative.get("summary_ta", ""),
+        "summary_te": narrative.get("summary_te", ""),
+        "next_steps": narrative.get("next_steps", []),
+        "tell_doctor": narrative.get("tell_doctor", []),
+        "lifestyle_tip": narrative.get("lifestyle_tip", ""),
+        "urgency": narrative.get("urgency", "ROUTINE"),
+        # Legacy fields kept for compatibility
         "explanation_en": req.explanation_en,
         "explanation_local": req.explanation_local,
         "local_language": req.local_language,
@@ -111,8 +130,6 @@ async def generate(req: ReportRequest):
         "filename": filename,
         "created": time.time(),
     }
-
-    # Schedule cleanup
     _schedule_cleanup(report_id)
 
     return {
@@ -142,7 +159,6 @@ async def download(report_id: str):
 
 
 def _schedule_cleanup(report_id: str) -> None:
-    """Delete temp PDF file after 1 hour."""
     def _cleanup():
         time.sleep(_CLEANUP_AFTER_SECONDS)
         entry = _reports.pop(report_id, None)
