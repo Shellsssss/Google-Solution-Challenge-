@@ -13,3 +13,6 @@ numpy>=1.26.0
 ai-edge-litert>=1.0.1
 aiofiles>=24.1.0
 python-multipart>=0.0.18
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+slowapi>=0.1.9
