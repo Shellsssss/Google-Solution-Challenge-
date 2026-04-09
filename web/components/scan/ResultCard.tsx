@@ -38,16 +38,20 @@ export default function ResultCard({ result, language, centres, onNewScan }: Res
     setDownloading(true);
     try {
       const report = await generateReport({
-        scan_id: result.scan_id,
         risk_level: result.risk_level,
         confidence: result.confidence,
         explanation: getExplanation(),
         scan_type: result.scan_type,
       });
 
-      // Open download URL
-      window.open(report.download_url, '_blank');
-      toast.success('Report generated and downloading…');
+      // Trigger real file download
+      const a = document.createElement('a');
+      a.href = report.download_url;
+      a.download = report.filename || 'JanArogya_Report.pdf';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast.success('Report downloaded!');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to generate report';
       toast.error(msg);
