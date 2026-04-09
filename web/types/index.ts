@@ -171,6 +171,7 @@ export interface DoctorQueueItem {
 
 // ─── Admin ──────────────────────────────────────────────
 export interface AdminUser {
+  id: string;
   user_id: string;
   name: string;
   email: string;
@@ -178,6 +179,8 @@ export interface AdminUser {
   scan_count: number;
   created_at: string;
 }
+
+export type UserRole = 'patient' | 'doctor' | 'admin';
 
 export interface ServiceStatus {
   status: 'healthy' | 'degraded' | 'down';
