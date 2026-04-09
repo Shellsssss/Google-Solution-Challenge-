@@ -20,6 +20,7 @@ export default function DashboardPage() {
   const user = useAppStore((s) => s.user);
   const collapsed = useAppStore((s) => s.sidebarCollapsed);
   const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'reports'>('overview');
+  const qc = useQueryClient();
 
   useEffect(() => {
     if (!getToken()) router.push('/login');
