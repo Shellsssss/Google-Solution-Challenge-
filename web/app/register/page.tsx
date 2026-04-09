@@ -32,7 +32,7 @@ export default function RegisterPage() {
     try {
       const res = await register(name, email, password, role);
       setToken(res.token);
-      setUser({ id: res.user_id, name, email, role, scan_count: 0, created_at: new Date().toISOString() }, res.token);
+      setUser({ user_id: res.user_id, name, email, role, scan_count: 0, created_at: new Date().toISOString() }, res.token);
       router.push('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
