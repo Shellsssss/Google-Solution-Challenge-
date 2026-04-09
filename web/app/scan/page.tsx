@@ -1,17 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import Navbar from '@/components/shared/Navbar';
 import ImageUploader from '@/components/scan/ImageUploader';
 import ScanTypeSelector from '@/components/scan/ScanTypeSelector';
 import LanguageSelector from '@/components/scan/LanguageSelector';
 import ResultCard from '@/components/scan/ResultCard';
 import AnalysisProgress from '@/components/scan/AnalysisProgress';
+import SymptomQuestionnaire, { type SymptomData } from '@/components/scan/SymptomQuestionnaire';
 import { Button } from '@/components/ui/Button';
 import { analyzeBase64 } from '@/lib/api';
 import { fileToBase64 } from '@/lib/utils';
 import type { AnalysisResult, Language, ScanResult, ScanType } from '@/types';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+
+const defaultSymptoms: SymptomData = {
+  selected_symptoms: [],
+  duration: '',
+  pain_level: 0,
+  risk_factors: [],
+  followup_answers: {},
+  additional_notes: '',
+};
 
 export default function ScanPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -20,8 +29,40 @@ export default function ScanPage() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showQuestions, setShowQuestions] = useState(false);
-  const [symptoms, setSymptoms] = useState({ q1: '', q2: '', q3: '' });
+  const [symptoms, setSymptoms] = useState<SymptomData>(defaultSymptoms);
+  const [showSymptoms, setShowSymptoms] = useState(false);
+
+  const handleSymptomsChange = useCallback((data: SymptomData) => {
+    setSymptoms(data);
+  }, []);
+
+  const buildSymptomsPayload = (): Record<string, string> | undefined => {
+    const hasData =
+      symptoms.selected_symptoms.length > 0 ||
+      symptoms.duration ||
+      symptoms.pain_level > 0 ||
+      symptoms.risk_factors.length > 0 ||
+      Object.values(symptoms.followup_answers).some(Boolean) ||
+      symptoms.additional_notes;
+
+    if (!hasData) return undefined;
+
+    const parts: Record<string, string> = {};
+    if (symptoms.selected_symptoms.length > 0)
+      parts.symptoms = symptoms.selected_symptoms.join(', ');
+    if (symptoms.duration)
+      parts.duration = symptoms.duration;
+    if (symptoms.pain_level > 0)
+      parts.pain_level = `${symptoms.pain_level}/10`;
+    if (symptoms.risk_factors.length > 0)
+      parts.risk_factors = symptoms.risk_factors.join(', ');
+    Object.entries(symptoms.followup_answers).forEach(([k, v]) => {
+      if (v) parts[`followup_${k}`] = v;
+    });
+    if (symptoms.additional_notes)
+      parts.additional_notes = symptoms.additional_notes;
+    return parts;
+  };
 
   const handleAnalyze = async () => {
     if (!file) return;
@@ -29,18 +70,16 @@ export default function ScanPage() {
     setError(null);
     setResult(null);
     try {
-      const timer = setInterval(() => {}, 1800);
       const base64 = await fileToBase64(file);
-      const hasSymptoms = Object.values(symptoms).some(Boolean);
-      const symptomsPayload = hasSymptoms
-        ? { symptoms: symptoms.q1, duration: symptoms.q2, pain: symptoms.q3 }
-        : undefined;
-      const res = await analyzeBase64(base64, scanType, symptomsPayload);
-      clearInterval(timer);
+      const res = await analyzeBase64(base64, scanType, buildSymptomsPayload());
       setResult(res);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Analysis failed';
-      setError(msg.includes('fetch') ? 'Backend offline. Run: cd backend && uvicorn main:app --reload' : msg);
+      setError(
+        msg.includes('fetch') || msg.includes('Failed')
+          ? 'Backend offline. Run: cd backend && uvicorn main:app --reload'
+          : msg,
+      );
     } finally {
       setLoading(false);
     }
@@ -54,50 +93,60 @@ export default function ScanPage() {
           <h1 className="text-3xl font-bold text-white">AI Cancer Screening</h1>
           <p className="text-muted mt-1">Upload an image for instant AI-powered risk assessment</p>
         </div>
+
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Left: Upload panel */}
-          <div className="space-y-5">
+          <div className="space-y-4">
+            {/* Step 1 */}
             <div className="bg-background-card rounded-2xl border border-border p-6">
-              <h2 className="text-sm font-semibold text-white mb-4 uppercase tracking-wide">1. Upload Image</h2>
+              <h2 className="text-xs font-semibold text-white mb-4 uppercase tracking-widest">1. Upload Image</h2>
               <ImageUploader onImageReady={setFile} onClear={() => setFile(null)} imageFile={file} />
             </div>
+
+            {/* Step 2 */}
             <div className="bg-background-card rounded-2xl border border-border p-6">
-              <h2 className="text-sm font-semibold text-white mb-4 uppercase tracking-wide">2. Select Type</h2>
+              <h2 className="text-xs font-semibold text-white mb-4 uppercase tracking-widest">2. Select Scan Type</h2>
               <ScanTypeSelector value={scanType} onChange={setScanType} />
             </div>
+
+            {/* Step 3 */}
             <div className="bg-background-card rounded-2xl border border-border p-6">
-              <h2 className="text-sm font-semibold text-white mb-4 uppercase tracking-wide">3. Result Language</h2>
+              <h2 className="text-xs font-semibold text-white mb-4 uppercase tracking-widest">3. Result Language</h2>
               <LanguageSelector value={language} onChange={setLanguage} />
             </div>
-            {/* Optional symptoms */}
+
+            {/* Step 4: Symptom Questionnaire */}
             <div className="bg-background-card rounded-2xl border border-border p-6">
               <button
-                onClick={() => setShowQuestions(!showQuestions)}
-                className="flex items-center justify-between w-full text-sm font-semibold text-white"
+                type="button"
+                onClick={() => setShowSymptoms(!showSymptoms)}
+                className="flex items-center justify-between w-full text-left"
               >
-                <span>4. Add Symptoms (Optional)</span>
-                {showQuestions ? <ChevronUp className="h-4 w-4 text-muted" /> : <ChevronDown className="h-4 w-4 text-muted" />}
+                <div>
+                  <h2 className="text-xs font-semibold text-white uppercase tracking-widest">4. Symptom Assessment</h2>
+                  <p className="text-xs text-muted mt-0.5">Optional — helps Gemini give a more accurate diagnosis</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {symptoms.selected_symptoms.length > 0 && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/20 font-medium">
+                      {symptoms.selected_symptoms.length} selected
+                    </span>
+                  )}
+                  <span className="text-muted text-sm">{showSymptoms ? '▲' : '▼'}</span>
+                </div>
               </button>
-              {showQuestions && (
-                <div className="mt-4 space-y-3">
-                  {[
-                    { key: 'q1', label: 'What symptoms are you experiencing?' },
-                    { key: 'q2', label: 'How long have you had this?' },
-                    { key: 'q3', label: 'Any pain or discomfort?' },
-                  ].map(({ key, label }) => (
-                    <div key={key}>
-                      <label className="text-xs text-muted block mb-1">{label}</label>
-                      <input
-                        value={symptoms[key as keyof typeof symptoms]}
-                        onChange={(e) => setSymptoms((s) => ({ ...s, [key]: e.target.value }))}
-                        className="w-full bg-background-secondary border border-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-muted focus:outline-none focus:border-accent"
-                        placeholder="Type here..."
-                      />
-                    </div>
-                  ))}
+
+              {showSymptoms && (
+                <div className="mt-5 border-t border-border pt-5">
+                  <SymptomQuestionnaire
+                    scanType={scanType === 'other' ? 'oral' : scanType}
+                    onChange={handleSymptomsChange}
+                  />
                 </div>
               )}
             </div>
+
+            {/* Analyze button */}
             <Button
               onClick={handleAnalyze}
               disabled={!file || loading}
@@ -105,8 +154,9 @@ export default function ScanPage() {
               size="lg"
               className="w-full"
             >
-              {loading ? 'Analyzing...' : 'Analyze Image'}
+              {loading ? 'Analysing...' : 'Analyze Image'}
             </Button>
+
             {error && (
               <div className="rounded-xl bg-danger/10 border border-danger/30 p-4 text-sm text-danger font-mono">
                 {error}
@@ -120,20 +170,33 @@ export default function ScanPage() {
               <div className="bg-background-card rounded-2xl border border-border p-12 text-center h-full flex flex-col items-center justify-center">
                 <div className="w-20 h-20 rounded-full bg-background-secondary border border-border flex items-center justify-center mb-4">
                   <svg className="h-8 w-8 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                 </div>
                 <p className="text-white font-medium mb-2">Your results will appear here</p>
                 <p className="text-muted text-sm">Upload an image and click Analyze to begin</p>
-                <div className="flex gap-2 mt-6">
-                  {['Fast', 'Secure', 'Multilingual'].map((tag) => (
-                    <span key={tag} className="px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-medium border border-accent/20">{tag}</span>
+                <div className="flex gap-2 mt-6 flex-wrap justify-center">
+                  {['TFLite Model', 'Gemini AI', 'Multilingual', '4 Languages'].map((tag) => (
+                    <span
+                      key={tag}
+                      className="px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-medium border border-accent/20"
+                    >
+                      {tag}
+                    </span>
                   ))}
                 </div>
               </div>
             )}
             {loading && <AnalysisProgress />}
-            {result && <ResultCard result={result as unknown as ScanResult} language={language} centres={[]} onNewScan={() => { setResult(null); setFile(null); }} />}
+            {result && (
+              <ResultCard
+                result={result as unknown as ScanResult}
+                language={language}
+                centres={[]}
+                onNewScan={() => { setResult(null); setFile(null); setSymptoms(defaultSymptoms); }}
+              />
+            )}
           </div>
         </div>
       </div>
