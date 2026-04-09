@@ -151,7 +151,7 @@ export interface DoctorReview {
   review_id?: string;
   scan_id: string;
   notes: string;
-  recommendation: Recommendation;
+  recommendation: Recommendation | string;
   follow_up_date?: string;
   reviewed_at?: string;
   doctor_id?: string;
