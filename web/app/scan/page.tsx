@@ -23,16 +23,13 @@ export default function ScanPage() {
   const [showQuestions, setShowQuestions] = useState(false);
   const [symptoms, setSymptoms] = useState({ q1: '', q2: '', q3: '' });
 
-  const steps = ['Checking image quality...', 'Running AI model...', 'Generating explanation...'];
-
   const handleAnalyze = async () => {
     if (!file) return;
     setLoading(true);
     setError(null);
     setResult(null);
-    setStep(0);
     try {
-      const timer = setInterval(() => setStep((s) => Math.min(s + 1, steps.length - 1)), 1800);
+      const timer = setInterval(() => {}, 1800);
       const base64 = await fileToBase64(file);
       const symptomsPayload = Object.values(symptoms).filter(Boolean).length > 0
         ? symptoms : undefined;
