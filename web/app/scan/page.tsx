@@ -10,7 +10,7 @@ import AnalysisProgress from '@/components/scan/AnalysisProgress';
 import { Button } from '@/components/ui/Button';
 import { analyzeBase64 } from '@/lib/api';
 import { fileToBase64 } from '@/lib/utils';
-import type { AnalysisResult, Language, ScanType } from '@/types';
+import type { AnalysisResult, Language, ScanResult, ScanType } from '@/types';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function ScanPage() {
