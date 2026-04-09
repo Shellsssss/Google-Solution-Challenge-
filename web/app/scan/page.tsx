@@ -135,7 +135,7 @@ export default function ScanPage() {
               </div>
             )}
             {loading && <AnalysisProgress />}
-            {result && <ResultCard result={result} language={language} scanType={scanType} />}
+            {result && <ResultCard result={result as unknown as ScanResult} language={language} centres={[]} onNewScan={() => { setResult(null); setFile(null); }} />}
           </div>
         </div>
       </div>
