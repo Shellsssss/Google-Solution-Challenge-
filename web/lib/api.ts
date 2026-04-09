@@ -168,12 +168,23 @@ export async function deleteScan(id: string): Promise<void> {
 
 // ─── Reports ────────────────────────────────────────────
 export async function generateReport(data: GenerateReportRequest): Promise<{ report_id: string; download_url: string; filename: string }> {
+  const body = {
+    risk_level: data.risk_level,
+    confidence: data.confidence ?? 0,
+    scan_type: data.scan_type ?? 'oral',
+    explanation_en: data.explanation ?? '',
+  };
   const res = await fetch(`${API_BASE}/report/generate`, {
     method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify(data),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   });
-  return handleResponse<{ report_id: string; download_url: string; filename: string }>(res);
+  const result = await handleResponse<{ report_id: string; download_url: string; filename: string }>(res);
+  // Make download_url absolute so the browser hits the backend directly
+  if (result.download_url && !result.download_url.startsWith('http')) {
+    result.download_url = `http://localhost:8000${result.download_url}`;
+  }
+  return result;
 }
 
 export async function downloadReport(id: string): Promise<Blob> {
