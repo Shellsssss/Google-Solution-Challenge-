@@ -333,7 +333,7 @@ def train():
 
 if __name__ == "__main__":
     tflite_path, labels_path = train()
-    print(f"\n🎉 Done! Model: {tflite_path}")
+    print(f"\n[SUCCESS] Model: {tflite_path}")
     print(f"   Labels: {labels_path}")
     print(f"\nDeploy with:")
     print(f"  cp {tflite_path} ../app/assets/models/janarogya_oral_int8.tflite")
