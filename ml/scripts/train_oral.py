@@ -13,6 +13,7 @@ Output:
   - ml/models/labels_oral.json
   - ml/models/training_report.json
 """
+import io
 import json
 import os
 import sys
@@ -21,6 +22,16 @@ from pathlib import Path
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+os.environ["PYTHONIOENCODING"] = "utf-8"
+
+# Force UTF-8 on stdout/stderr for Windows cp1252 consoles
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 import numpy as np
 from PIL import Image, UnidentifiedImageError
@@ -285,7 +296,7 @@ def train():
 
     # ── Training report ───────────────────────────────────────────────────
     report = {
-        "timestamp": time.strftime("%Y-%m-%d %Human:%M:%S"),
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         "model": "EfficientNetB3",
         "num_classes": NUM_CLASSES,
         "labels": IDX_TO_LABEL,

@@ -24,11 +24,6 @@ dependencies:
   dio: ^5.4.0
   connectivity_plus: ^6.0.3
 
-  # Firebase
-  firebase_core: ^2.32.0
-  cloud_firestore: ^4.17.2
-  firebase_storage: ^11.7.4
-
   # Maps & URL
   url_launcher: ^6.3.1
 
