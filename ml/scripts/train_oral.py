@@ -235,7 +235,7 @@ def train():
                    class_weight=class_weight, callbacks=callbacks1)
 
     # ── Phase 2: Fine-tune ────────────────────────────────────────────────
-    print("\n🎯 Phase 2: Fine-tuning top 30 layers...")
+    print("\n[5/6] Phase 2: Fine-tuning top 30 layers...")
     base.trainable = True
     for layer in base.layers[:-30]:
         layer.trainable = False
