@@ -268,10 +268,10 @@ def train():
     # ── Save H5 ───────────────────────────────────────────────────────────
     h5_path = MODELS / "janarogya_oral_v2.h5"
     model.save(str(h5_path))
-    print(f"\n💾 Saved H5: {h5_path}")
+    print(f"\n[SAVE] H5: {h5_path}")
 
     # ── Export TFLite INT8 ────────────────────────────────────────────────
-    print("\n📦 Exporting INT8 TFLite...")
+    print("\n[EXPORT] INT8 TFLite...")
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     converter.optimizations = [tf.lite.Optimize.DEFAULT]
 
