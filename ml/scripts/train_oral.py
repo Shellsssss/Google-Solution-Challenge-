@@ -197,9 +197,9 @@ def train():
     test_items  = low_te + hi_te
 
     np.random.shuffle(train_items)
-    print(f"\n📊 Split: train={len(train_items)} val={len(val_items)} test={len(test_items)}")
-    print(f"  LOW_RISK  → train:{sum(1 for _,l in train_items if l==0)} val:{sum(1 for _,l in val_items if l==0)}")
-    print(f"  HIGH_RISK → train:{sum(1 for _,l in train_items if l==1)} val:{sum(1 for _,l in val_items if l==1)}")
+    print(f"\n[3/6] Split: train={len(train_items)} val={len(val_items)} test={len(test_items)}")
+    print(f"  LOW_RISK  -> train:{sum(1 for _,l in train_items if l==0)} val:{sum(1 for _,l in val_items if l==0)}")
+    print(f"  HIGH_RISK -> train:{sum(1 for _,l in train_items if l==1)} val:{sum(1 for _,l in val_items if l==1)}")
 
     # Class weights
     n_low  = sum(1 for _, l in train_items if l == 0)
