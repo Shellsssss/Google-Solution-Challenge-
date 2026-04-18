@@ -214,7 +214,7 @@ def train():
     test_ds  = build_dataset(test_items,  augment=False).batch(BATCH_SIZE).prefetch(tf.data.AUTOTUNE)
 
     # ── Phase 1: Train head ───────────────────────────────────────────────
-    print("\n🚀 Phase 1: Training head (frozen base)...")
+    print("\n[4/6] Phase 1: Training head (frozen base)...")
     model, base = build_model()
     model.compile(
         optimizer=tf.keras.optimizers.Adam(1e-4),
