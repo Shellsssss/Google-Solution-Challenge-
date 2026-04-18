@@ -77,7 +77,7 @@ def collect_images() -> list[tuple[Path, int]]:
     items: list[tuple[Path, int]] = []
     for directory, label in sources:
         if not directory.exists():
-            print(f"  ⚠ Skipping missing dir: {directory}")
+            print(f"  [WARN] Skipping missing dir: {directory}")
             continue
         for f in sorted(directory.iterdir()):
             if f.suffix.lower() in exts:
