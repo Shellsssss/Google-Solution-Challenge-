@@ -3,10 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Eye, EyeOff, Activity, AlertCircle, User, Stethoscope } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
 import { register } from '@/lib/api';
-import SocialAuthButtons from '@/components/auth/SocialAuthButtons';
 import { setToken } from '@/lib/auth';
 import { useAppStore } from '@/store';
 import type { UserRole } from '@/types';
@@ -19,7 +16,6 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [confirmPwd, setConfirmPwd] = useState('');
   const [role, setRole] = useState<UserRole>('patient');
-  const [showPwd, setShowPwd] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -43,102 +39,72 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex">
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-background-primary via-background-secondary to-background-card flex-col items-center justify-center p-12 border-r border-border">
-        <div className="max-w-sm text-center">
-          <div className="flex items-center gap-3 justify-center mb-8">
-            <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center">
-              <Activity className="h-7 w-7 text-white" />
-            </div>
-            <div className="text-left">
-              <div className="text-2xl font-bold text-white">JanArogya</div>
-              <div className="text-sm text-muted">जनआरोग्य</div>
-            </div>
-          </div>
-          <h2 className="text-3xl font-bold text-white mb-3">Join the healthcare revolution</h2>
-          <p className="text-muted">Help bring AI-powered cancer screening to 600 million rural Indians.</p>
+    <div className="auth-wrap">
+      <div className="auth-card" style={{ maxWidth: '480px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+          <Link href="/" style={{ textDecoration: 'none', color: 'var(--brand)', fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: '20px' }}>
+            🌿 JanArogya
+          </Link>
+          <h1 style={{ marginTop: '12px' }}>Create account</h1>
+          <p className="auth-sub">Join JanArogya — free cancer screening for all</p>
         </div>
-      </div>
 
-      <div className="flex-1 flex items-center justify-center p-8 bg-background-primary">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-white">Create account</h1>
-            <p className="text-muted mt-1">Join JanArogya today</p>
+        {error && (
+          <div style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger)', borderRadius: '12px', padding: '12px 16px', marginBottom: '18px', color: 'var(--danger)', fontSize: '14px', fontWeight: 600 }}>
+            ⚠ {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <div className="field">
+            <label>Full Name</label>
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Your name" />
+          </div>
+          <div className="field">
+            <label>Email</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" />
+          </div>
+          <div className="field">
+            <label>Password</label>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="Min 6 characters" />
+          </div>
+          <div className="field">
+            <label>Confirm Password</label>
+            <input type="password" value={confirmPwd} onChange={(e) => setConfirmPwd(e.target.value)} required placeholder="••••••••" />
           </div>
 
-          {error && (
-            <div className="mb-4 flex items-center gap-2 bg-danger/10 border border-danger/30 rounded-xl p-3 text-sm text-danger">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              {error}
-            </div>
-          )}
-
-          {/* Social Sign-up */}
-          <SocialAuthButtons />
-
-          <div className="flex items-center gap-3 my-5">
-            <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-muted">or register with email</span>
-            <div className="flex-1 h-px bg-border" />
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-sm text-muted block mb-1.5">Full Name</label>
-              <input type="text" value={name} onChange={(e) => setName(e.target.value)} required
-                className="w-full bg-background-card border border-border rounded-xl px-4 py-2.5 text-white placeholder:text-muted focus:outline-none focus:border-accent"
-                placeholder="Your name" />
-            </div>
-            <div>
-              <label className="text-sm text-muted block mb-1.5">Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
-                className="w-full bg-background-card border border-border rounded-xl px-4 py-2.5 text-white placeholder:text-muted focus:outline-none focus:border-accent"
-                placeholder="you@example.com" />
-            </div>
-            <div>
-              <label className="text-sm text-muted block mb-1.5">Password</label>
-              <div className="relative">
-                <input type={showPwd ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} required
-                  className="w-full bg-background-card border border-border rounded-xl px-4 py-2.5 pr-10 text-white placeholder:text-muted focus:outline-none focus:border-accent"
-                  placeholder="Min 6 characters" />
-                <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-white">
-                  {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          <div className="field">
+            <label>I am a…</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              {(['patient', 'doctor'] as const).map((r) => (
+                <button key={r} type="button" onClick={() => setRole(r)}
+                  style={{
+                    border: `2px solid ${role === r ? 'var(--brand)' : 'var(--line)'}`,
+                    background: role === r ? 'var(--brand-soft)' : 'var(--surface)',
+                    borderRadius: '12px', padding: '12px', cursor: 'pointer',
+                    fontWeight: 700, fontSize: '14px', color: role === r ? 'var(--brand-dark)' : 'var(--ink-soft)',
+                    fontFamily: 'inherit', transition: 'all 0.12s',
+                  }}>
+                  {r === 'patient' ? '🙋 Patient' : '🩺 Healthcare Professional'}
                 </button>
-              </div>
+              ))}
             </div>
-            <div>
-              <label className="text-sm text-muted block mb-1.5">Confirm Password</label>
-              <input type="password" value={confirmPwd} onChange={(e) => setConfirmPwd(e.target.value)} required
-                className="w-full bg-background-card border border-border rounded-xl px-4 py-2.5 text-white placeholder:text-muted focus:outline-none focus:border-accent"
-                placeholder="••••••••" />
-            </div>
-            <div>
-              <label className="text-sm text-muted block mb-2">I am a...</label>
-              <div className="grid grid-cols-2 gap-3">
-                {([['patient', 'Patient', User], ['doctor', 'Healthcare Professional', Stethoscope]] as const).map(([val, label, Icon]) => (
-                  <button key={val} type="button" onClick={() => setRole(val as UserRole)}
-                    className={`flex items-center gap-2 p-3 rounded-xl border transition-all text-sm font-medium ${role === val ? 'border-accent bg-accent/10 text-accent' : 'border-border bg-background-card text-muted hover:border-border-light'}`}>
-                    <Icon className="h-4 w-4" />
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="rounded" />
-              <span className="text-sm text-muted">I agree to the terms. This tool is for screening only, not diagnosis.</span>
-            </label>
-            <Button type="submit" isLoading={loading} className="w-full" size="lg">
-              Create Account
-            </Button>
-          </form>
+          </div>
 
-          <p className="mt-4 text-center text-sm text-muted">
-            Already have an account?{' '}
-            <Link href="/login" className="text-accent hover:underline">Sign in</Link>
-          </p>
-        </div>
+          <label style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', cursor: 'pointer', marginBottom: '18px', fontSize: '14px', color: 'var(--ink-soft)' }}>
+            <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ marginTop: '2px', flexShrink: 0 }} />
+            I agree to the terms. This tool is for screening only, not diagnosis.
+          </label>
+
+          <button type="submit" className="btn full" disabled={loading}>
+            {loading ? 'Creating account…' : 'Create Account'}
+          </button>
+        </form>
+
+        <p style={{ textAlign: 'center', fontSize: '14px', color: 'var(--ink-soft)', marginTop: '16px' }}>
+          Already have an account?{' '}
+          <Link href="/login" style={{ color: 'var(--brand)', fontWeight: 700, textDecoration: 'none' }}>Sign in</Link>
+        </p>
       </div>
     </div>
   );

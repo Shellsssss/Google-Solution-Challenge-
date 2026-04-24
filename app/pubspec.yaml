@@ -55,7 +55,6 @@ flutter:
 
   assets:
     - assets/models/janarogya_skin_int8.tflite
-    - assets/models/janarogya_oral_f32.tflite
     - assets/models/janarogya_oral_int8.tflite
     - assets/models/labels_skin.json
     - assets/models/labels_oral.json

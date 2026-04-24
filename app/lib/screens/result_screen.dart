@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -15,7 +16,6 @@ import '../services/api_service.dart';
 import '../services/database_service.dart';
 import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/risk_badge.dart';
 
 class ResultScreen extends StatefulWidget {
   final Uint8List    imageBytes;
@@ -42,7 +42,6 @@ class _ResultScreenState extends State<ResultScreen> {
   void initState() {
     super.initState();
     _saveLocally();
-    // Setup TTS callbacks
     TtsService().onStart = () { if (mounted) setState(() => _speaking = true);  };
     TtsService().onStop  = () { if (mounted) setState(() => _speaking = false); };
   }
@@ -64,8 +63,7 @@ class _ResultScreenState extends State<ResultScreen> {
     if (_speaking) {
       await TtsService().stop();
     } else {
-      final text = widget.result.explanationFor(lang);
-      await TtsService().speak(text, langCode: lang);
+      await TtsService().speak(widget.result.explanationFor(lang), langCode: lang);
     }
   }
 
@@ -189,175 +187,420 @@ class _ResultScreenState extends State<ResultScreen> {
     final lang   = context.watch<AppProvider>().langCode;
     final s      = AppStrings(lang);
     final result = widget.result;
-    final expl   = result.explanationFor(lang);
 
     return Scaffold(
-      backgroundColor: context.primaryBg,
+      backgroundColor: JaColors.bg,
       appBar: AppBar(
-        title: Text(s.resultTitle),
+        title: Text('Your result',
+            style: GoogleFonts.nunito(fontSize: 20, fontWeight: FontWeight.w800, color: JaColors.ink)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.popUntil(context, (r) => r.isFirst),
         ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: JaColors.line),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Scanned image
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.memory(
-                widget.imageBytes,
-                height: 160, width: double.infinity, fit: BoxFit.cover,
-              ),
-            ),
-            const SizedBox(height: 16),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // ── Result hero card ───────────────────────────────────────
+              _ResultHero(result: result),
+              const SizedBox(height: 20),
 
-            // Risk badge
-            RiskBadge(risk: result.riskLevel, confidence: result.confidence),
-            const SizedBox(height: 16),
+              // ── Confidence bar ─────────────────────────────────────────
+              if (result.riskLevel != RiskLevel.invalid) ...[
+                _ConfidenceBar(confidence: result.confidence),
+                const SizedBox(height: 20),
+              ],
 
-            // Explanation card with TTS button
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: context.cardBg,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: context.border),
+              // ── Explanation ────────────────────────────────────────────
+              _ExplanationCard(
+                text: result.explanationFor(lang),
+                speaking: _speaking,
+                onTts: _toggleTts,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(s.resultExplanation,
-                          style: TextStyle(
-                              color: context.textPrimary,
-                              fontSize: 14, fontWeight: FontWeight.w600)),
-                      // TTS toggle button
-                      IconButton(
-                        icon: Icon(
-                          _speaking ? Icons.stop_circle : Icons.volume_up_outlined,
-                          color: context.accent,
-                          size: 24,
-                        ),
-                        tooltip: _speaking ? 'Stop' : 'Listen',
-                        onPressed: _toggleTts,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(expl,
-                      style: TextStyle(
-                          color: context.textSec,
-                          fontSize: 14, height: 1.6)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 16),
 
-            // Symptoms summary
-            if (result.symptoms != null && result.symptoms!.isNotEmpty) ...[
-              Container(
+              // ── Next steps (high risk only) ────────────────────────────
+              if (result.riskLevel == RiskLevel.high) ...[
+                _NextStepsCard(onFindClinic: _openMaps),
+                const SizedBox(height: 16),
+              ],
+
+              // ── Symptoms summary ───────────────────────────────────────
+              if (result.symptoms != null && result.symptoms!.isNotEmpty) ...[
+                _SymptomsCard(symptoms: result.symptoms!),
+                const SizedBox(height: 16),
+              ],
+
+              // ── Disclaimer ─────────────────────────────────────────────
+              _DisclaimerBox(text: s.disclaimer),
+              const SizedBox(height: 24),
+
+              // ── Action buttons ─────────────────────────────────────────
+              if (result.riskLevel == RiskLevel.high)
+                _ActionBtn(
+                  icon: Icons.location_on_outlined,
+                  label: s.resultFindClinic,
+                  filled: true,
+                  onTap: _openMaps,
+                ),
+              if (result.riskLevel == RiskLevel.high) const SizedBox(height: 10),
+
+              _ActionBtn(
+                icon: Icons.download_outlined,
+                label: _loadingPdf ? AppStrings(lang).loadingReport : s.resultDownload,
+                loading: _loadingPdf,
+                onTap: _loadingPdf ? null : _downloadReport,
+              ),
+              const SizedBox(height: 10),
+
+              _ActionBtn(
+                icon: Icons.share_outlined,
+                label: s.resultShareReport,
+                loading: _loadingShare,
+                onTap: _loadingShare ? null : _shareReport,
+              ),
+              const SizedBox(height: 10),
+
+              SizedBox(
                 width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: context.cardBg,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: context.border),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Reported Symptoms',
-                        style: TextStyle(
-                            color: context.textPrimary,
-                            fontSize: 14, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 8),
-                    ...result.symptoms!.entries.map((e) => Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Text('• ${e.key}: ${e.value}',
-                          style: TextStyle(
-                              color: context.textSec, fontSize: 13)),
-                    )),
-                  ],
+                child: TextButton(
+                  onPressed: () => Navigator.popUntil(context, (r) => r.isFirst),
+                  child: Text(s.resultScanAgain,
+                      style: GoogleFonts.notoSans(fontSize: 15, color: JaColors.inkSoft)),
                 ),
               ),
-              const SizedBox(height: 12),
-            ],
-
-            // Disclaimer
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: context.warning.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                    color: context.warning.withValues(alpha: 0.4)),
-              ),
-              child: Text(s.disclaimer,
-                  style: TextStyle(
-                      color: context.textSec, fontSize: 12,
-                      fontStyle: FontStyle.italic, height: 1.5)),
-            ),
-            const SizedBox(height: 20),
-
-            // Find clinic button
-            ElevatedButton.icon(
-              onPressed: _openMaps,
-              icon: const Icon(Icons.location_on_outlined),
-              label: Text(s.resultFindClinic),
-            ),
-            const SizedBox(height: 10),
-
-            // Download report button
-            OutlinedButton.icon(
-              onPressed: _loadingPdf ? null : _downloadReport,
-              icon: _loadingPdf
-                  ? SizedBox(
-                      width: 18, height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: context.accent))
-                  : const Icon(Icons.download_outlined),
-              label: Text(_loadingPdf
-                  ? AppStrings(lang).loadingReport
-                  : s.resultDownload),
-            ),
-            const SizedBox(height: 10),
-
-            // Share report button
-            OutlinedButton.icon(
-              onPressed: _loadingShare ? null : _shareReport,
-              icon: _loadingShare
-                  ? SizedBox(
-                      width: 18, height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: context.accent))
-                  : const Icon(Icons.share_outlined),
-              label: Text(s.resultShareReport),
-            ),
-            const SizedBox(height: 10),
-
-            // Scan again
-            SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                onPressed: () => Navigator.popUntil(context, (r) => r.isFirst),
-                child: Text(s.resultScanAgain,
-                    style: TextStyle(color: context.textSec)),
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
+              const SizedBox(height: 8),
+            ]),
+          ),
         ),
       ),
+    );
+  }
+}
+
+// ── Result hero ───────────────────────────────────────────────────────────────
+class _ResultHero extends StatelessWidget {
+  final ScanResult result;
+  const _ResultHero({required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    final (bg, iconColor, icon, headline, subline) = switch (result.riskLevel) {
+      RiskLevel.low => (
+        JaColors.brandSoft,
+        JaColors.brand,
+        Icons.check_circle_outline,
+        'Looks fine',
+        'No signs of concern were found.',
+      ),
+      RiskLevel.high => (
+        JaColors.dangerSoft,
+        JaColors.danger,
+        Icons.warning_amber_outlined,
+        'Please see a doctor',
+        'Something needs a closer look.',
+      ),
+      RiskLevel.invalid => (
+        JaColors.warnSoft,
+        JaColors.warn,
+        Icons.camera_alt_outlined,
+        'Photo unclear',
+        'Retake in good light and try again.',
+      ),
+    };
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: iconColor.withValues(alpha: 0.25),
+          width: 1.5,
+        ),
+      ),
+      child: Column(children: [
+        Container(
+          width: 96, height: 96,
+          decoration: BoxDecoration(
+            color: iconColor.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: iconColor, size: 52),
+        ),
+        const SizedBox(height: 16),
+        Text(headline,
+            style: GoogleFonts.nunito(
+                fontSize: 32, fontWeight: FontWeight.w800, color: iconColor, height: 1.1)),
+        const SizedBox(height: 6),
+        Text(subline,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.notoSans(fontSize: 15, color: JaColors.inkSoft)),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: JaColors.surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: JaColors.line),
+          ),
+          child: Text(
+            result.scanType == ScanType.oral ? 'Oral screening' : 'Skin screening',
+            style: GoogleFonts.notoSans(fontSize: 13, fontWeight: FontWeight.w700, color: JaColors.inkSoft),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+// ── Confidence bar ────────────────────────────────────────────────────────────
+class _ConfidenceBar extends StatelessWidget {
+  final double confidence;
+  const _ConfidenceBar({required this.confidence});
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = (confidence * 100).round();
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: JaColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: JaColors.line),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text('Model confidence',
+              style: GoogleFonts.notoSans(fontSize: 13, fontWeight: FontWeight.w700, color: JaColors.inkSoft)),
+          Text('$pct%',
+              style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w800, color: JaColors.brand)),
+        ]),
+        const SizedBox(height: 10),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: confidence,
+            minHeight: 8,
+            backgroundColor: JaColors.line,
+            valueColor: const AlwaysStoppedAnimation<Color>(JaColors.brand),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+// ── Explanation card ──────────────────────────────────────────────────────────
+class _ExplanationCard extends StatelessWidget {
+  final String text;
+  final bool speaking;
+  final VoidCallback onTts;
+  const _ExplanationCard({required this.text, required this.speaking, required this.onTts});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: JaColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: JaColors.line),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text('What this means',
+              style: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w700, color: JaColors.ink)),
+          GestureDetector(
+            onTap: onTts,
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: speaking ? JaColors.brandSoft : JaColors.bg,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: speaking ? JaColors.brand : JaColors.line),
+              ),
+              child: Icon(
+                speaking ? Icons.stop_rounded : Icons.volume_up_outlined,
+                color: speaking ? JaColors.brand : JaColors.inkSoft,
+                size: 20,
+              ),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 10),
+        Text(text,
+            style: GoogleFonts.notoSans(fontSize: 15, color: JaColors.inkSoft, height: 1.6)),
+      ]),
+    );
+  }
+}
+
+// ── Next steps (high risk) ────────────────────────────────────────────────────
+class _NextStepsCard extends StatelessWidget {
+  final VoidCallback onFindClinic;
+  const _NextStepsCard({required this.onFindClinic});
+
+  @override
+  Widget build(BuildContext context) {
+    final steps = [
+      (Icons.local_hospital_outlined, 'Visit a doctor', 'Show them this result screen or download the PDF report.'),
+      (Icons.location_on_outlined,    'Find a free clinic', 'Government centres offer free cancer checks near you.'),
+      (Icons.download_outlined,       'Download your report', 'Save a PDF to share with any doctor or health worker.'),
+    ];
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: JaColors.dangerSoft,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: JaColors.danger.withValues(alpha: 0.2)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('What to do next',
+            style: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w700, color: JaColors.ink)),
+        const SizedBox(height: 14),
+        for (final (icon, title, desc) in steps) ...[
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(
+              width: 40, height: 40,
+              decoration: BoxDecoration(
+                color: JaColors.surface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: JaColors.line),
+              ),
+              child: Icon(icon, color: JaColors.danger, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title,
+                  style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w700, color: JaColors.ink)),
+              Text(desc,
+                  style: GoogleFonts.notoSans(fontSize: 13, color: JaColors.inkSoft, height: 1.4)),
+            ])),
+          ]),
+          if (steps.indexOf((icon, title, desc)) < steps.length - 1)
+            const SizedBox(height: 12),
+        ],
+      ]),
+    );
+  }
+}
+
+// ── Symptoms card ─────────────────────────────────────────────────────────────
+class _SymptomsCard extends StatelessWidget {
+  final Map<String, String> symptoms;
+  const _SymptomsCard({required this.symptoms});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: JaColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: JaColors.line),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Reported symptoms',
+            style: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w700, color: JaColors.ink)),
+        const SizedBox(height: 10),
+        for (final e in symptoms.entries)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Padding(
+                padding: EdgeInsets.only(top: 2),
+                child: Icon(Icons.circle, size: 6, color: JaColors.inkSoft),
+              ),
+              const SizedBox(width: 8),
+              Expanded(child: Text('${e.key}: ${e.value}',
+                  style: GoogleFonts.notoSans(fontSize: 14, color: JaColors.inkSoft))),
+            ]),
+          ),
+      ]),
+    );
+  }
+}
+
+// ── Disclaimer ────────────────────────────────────────────────────────────────
+class _DisclaimerBox extends StatelessWidget {
+  final String text;
+  const _DisclaimerBox({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: JaColors.warnSoft,
+        borderRadius: BorderRadius.circular(10),
+        border: const Border(left: BorderSide(color: JaColors.warn, width: 4)),
+      ),
+      child: Text(text,
+          style: GoogleFonts.notoSans(
+              fontSize: 13, color: JaColors.ink, fontStyle: FontStyle.italic, height: 1.5)),
+    );
+  }
+}
+
+// ── Generic action button ─────────────────────────────────────────────────────
+class _ActionBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool filled;
+  final bool loading;
+  final VoidCallback? onTap;
+  const _ActionBtn({
+    required this.icon,
+    required this.label,
+    this.filled = false,
+    this.loading = false,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: filled
+          ? ElevatedButton.icon(
+              onPressed: onTap,
+              icon: loading
+                  ? const SizedBox(width: 18, height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : Icon(icon),
+              label: Text(label),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: JaColors.brand,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                textStyle: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+            )
+          : OutlinedButton.icon(
+              onPressed: onTap,
+              icon: loading
+                  ? const SizedBox(width: 18, height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: JaColors.brand))
+                  : Icon(icon),
+              label: Text(label),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: JaColors.brand,
+                side: const BorderSide(color: JaColors.brand, width: 1.5),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                textStyle: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w700),
+              ),
+            ),
     );
   }
 }

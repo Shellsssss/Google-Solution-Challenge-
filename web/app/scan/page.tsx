@@ -1,205 +1,289 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import Navbar from '@/components/shared/Navbar';
-import ImageUploader from '@/components/scan/ImageUploader';
-import ScanTypeSelector from '@/components/scan/ScanTypeSelector';
-import LanguageSelector from '@/components/scan/LanguageSelector';
+import Footer from '@/components/shared/Footer';
 import ResultCard from '@/components/scan/ResultCard';
-import AnalysisProgress from '@/components/scan/AnalysisProgress';
 import SymptomQuestionnaire, { type SymptomData } from '@/components/scan/SymptomQuestionnaire';
-import { Button } from '@/components/ui/Button';
 import { analyzeBase64 } from '@/lib/api';
 import { fileToBase64 } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
+import { useAppStore } from '@/store';
 import type { AnalysisResult, Language, ScanResult, ScanType } from '@/types';
 
+const LANGS: { code: Language; label: string }[] = [
+  { code: 'en', label: 'English' },
+  { code: 'hi', label: 'हिंदी' },
+  { code: 'ta', label: 'தமிழ்' },
+  { code: 'te', label: 'తెలుగు' },
+];
+
+const SCAN_TYPES: { value: ScanType; label: string; emoji: string; desc: string }[] = [
+  { value: 'oral', label: 'Oral Cavity', emoji: '🦷', desc: 'Inside mouth, tongue, gums' },
+  { value: 'skin', label: 'Skin Lesion', emoji: '🩹', desc: 'Moles, spots, discoloration' },
+  { value: 'other', label: 'General', emoji: '🔍', desc: 'General screening' },
+];
+
 const defaultSymptoms: SymptomData = {
-  selected_symptoms: [],
-  duration: '',
-  pain_level: 0,
-  risk_factors: [],
-  followup_answers: {},
-  additional_notes: '',
+  selected_symptoms: [], duration: '', pain_level: 0,
+  risk_factors: [], followup_answers: {}, additional_notes: '',
 };
 
 export default function ScanPage() {
+  const T = useT();
+  const { language, setLanguage } = useAppStore();
   const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const [scanType, setScanType] = useState<ScanType>('oral');
-  const [language, setLanguage] = useState<Language>('en');
+  const [symptoms, setSymptoms] = useState<SymptomData>(defaultSymptoms);
+  const [showSymptoms, setShowSymptoms] = useState(true);
+  const [symptomsComplete, setSymptomsComplete] = useState(false);
+  const [showSymptomsWarning, setShowSymptomsWarning] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [symptoms, setSymptoms] = useState<SymptomData>(defaultSymptoms);
-  const [showSymptoms, setShowSymptoms] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleSymptomsChange = useCallback((data: SymptomData) => {
-    setSymptoms(data);
+  const handleFile = (f: File) => {
+    setFile(f); setPreview(URL.createObjectURL(f));
+    setResult(null); setError(null);
+  };
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    const f = e.dataTransfer.files[0];
+    if (f && f.type.startsWith('image/')) handleFile(f);
   }, []);
 
   const buildSymptomsPayload = (): Record<string, string> | undefined => {
-    const hasData =
-      symptoms.selected_symptoms.length > 0 ||
-      symptoms.duration ||
-      symptoms.pain_level > 0 ||
-      symptoms.risk_factors.length > 0 ||
-      Object.values(symptoms.followup_answers).some(Boolean) ||
-      symptoms.additional_notes;
-
+    const hasData = symptoms.selected_symptoms.length > 0 || symptoms.duration ||
+      symptoms.pain_level > 0 || symptoms.risk_factors.length > 0 ||
+      Object.values(symptoms.followup_answers).some(Boolean) || symptoms.additional_notes;
     if (!hasData) return undefined;
-
     const parts: Record<string, string> = {};
-    if (symptoms.selected_symptoms.length > 0)
-      parts.symptoms = symptoms.selected_symptoms.join(', ');
-    if (symptoms.duration)
-      parts.duration = symptoms.duration;
-    if (symptoms.pain_level > 0)
-      parts.pain_level = `${symptoms.pain_level}/10`;
-    if (symptoms.risk_factors.length > 0)
-      parts.risk_factors = symptoms.risk_factors.join(', ');
-    Object.entries(symptoms.followup_answers).forEach(([k, v]) => {
-      if (v) parts[`followup_${k}`] = v;
-    });
-    if (symptoms.additional_notes)
-      parts.additional_notes = symptoms.additional_notes;
+    if (symptoms.selected_symptoms.length > 0) parts.symptoms = symptoms.selected_symptoms.join(', ');
+    if (symptoms.duration) parts.duration = symptoms.duration;
+    if (symptoms.pain_level > 0) parts.pain_level = `${symptoms.pain_level}/10`;
+    if (symptoms.risk_factors.length > 0) parts.risk_factors = symptoms.risk_factors.join(', ');
+    Object.entries(symptoms.followup_answers).forEach(([k, v]) => { if (v) parts[`followup_${k}`] = v; });
+    if (symptoms.additional_notes) parts.additional_notes = symptoms.additional_notes;
     return parts;
   };
 
   const handleAnalyze = async () => {
     if (!file) return;
-    setLoading(true);
-    setError(null);
-    setResult(null);
+    if (!symptomsComplete) {
+      setShowSymptoms(true);
+      setShowSymptomsWarning(true);
+      return;
+    }
+    setShowSymptomsWarning(false);
+    setLoading(true); setError(null);
     try {
       const base64 = await fileToBase64(file);
-      const res = await analyzeBase64(base64, scanType, buildSymptomsPayload());
+      const res = await analyzeBase64(base64, scanType, buildSymptomsPayload(), language);
       setResult(res);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Analysis failed';
-      setError(
-        msg.includes('fetch') || msg.includes('Failed')
-          ? 'Backend offline. Run: cd backend && uvicorn main:app --reload'
-          : msg,
-      );
+      setError(msg.includes('fetch') || msg.includes('Failed')
+        ? T.error_backend
+        : msg);
     } finally {
       setLoading(false);
     }
   };
 
+  const reset = () => {
+    setFile(null); setPreview(null); setResult(null); setError(null);
+    setSymptoms(defaultSymptoms); setShowSymptoms(true);
+    setSymptomsComplete(false); setShowSymptomsWarning(false);
+  };
+
+  const symptomsCount = symptoms.selected_symptoms.length + symptoms.risk_factors.length +
+    Object.values(symptoms.followup_answers).filter(Boolean).length;
+
   return (
-    <div className="min-h-screen bg-background-primary">
+    <div>
       <Navbar />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white">AI Cancer Screening</h1>
-          <p className="text-muted mt-1">Upload an image for instant AI-powered risk assessment</p>
-        </div>
 
-        <div className="grid lg:grid-cols-2 gap-8">
-          {/* Left: Upload panel */}
-          <div className="space-y-4">
-            {/* Step 1 */}
-            <div className="bg-background-card rounded-2xl border border-border p-6">
-              <h2 className="text-xs font-semibold text-white mb-4 uppercase tracking-widest">1. Upload Image</h2>
-              <ImageUploader onImageReady={setFile} onClear={() => setFile(null)} imageFile={file} />
-            </div>
-
-            {/* Step 2 */}
-            <div className="bg-background-card rounded-2xl border border-border p-6">
-              <h2 className="text-xs font-semibold text-white mb-4 uppercase tracking-widest">2. Select Scan Type</h2>
-              <ScanTypeSelector value={scanType} onChange={setScanType} />
-            </div>
-
-            {/* Step 3 */}
-            <div className="bg-background-card rounded-2xl border border-border p-6">
-              <h2 className="text-xs font-semibold text-white mb-4 uppercase tracking-widest">3. Result Language</h2>
-              <LanguageSelector value={language} onChange={setLanguage} />
-            </div>
-
-            {/* Step 4: Symptom Questionnaire */}
-            <div className="bg-background-card rounded-2xl border border-border p-6">
-              <button
-                type="button"
-                onClick={() => setShowSymptoms(!showSymptoms)}
-                className="flex items-center justify-between w-full text-left"
-              >
-                <div>
-                  <h2 className="text-xs font-semibold text-white uppercase tracking-widest">4. Symptom Assessment</h2>
-                  <p className="text-xs text-muted mt-0.5">Optional — helps Gemini give a more accurate diagnosis</p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {symptoms.selected_symptoms.length > 0 && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/20 font-medium">
-                      {symptoms.selected_symptoms.length} selected
-                    </span>
-                  )}
-                  <span className="text-muted text-sm">{showSymptoms ? '▲' : '▼'}</span>
-                </div>
-              </button>
-
-              {showSymptoms && (
-                <div className="mt-5 border-t border-border pt-5">
-                  <SymptomQuestionnaire
-                    scanType={scanType === 'other' ? 'oral' : scanType}
-                    onChange={handleSymptomsChange}
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Analyze button */}
-            <Button
-              onClick={handleAnalyze}
-              disabled={!file || loading}
-              isLoading={loading}
-              size="lg"
-              className="w-full"
-            >
-              {loading ? 'Analysing...' : 'Analyze Image'}
-            </Button>
-
-            {error && (
-              <div className="rounded-xl bg-danger/10 border border-danger/30 p-4 text-sm text-danger font-mono">
-                {error}
-              </div>
-            )}
-          </div>
-
-          {/* Right: Result panel */}
+      <div className="page-head">
+        <div className="page-head-inner">
           <div>
-            {!result && !loading && (
-              <div className="bg-background-card rounded-2xl border border-border p-12 text-center h-full flex flex-col items-center justify-center">
-                <div className="w-20 h-20 rounded-full bg-background-secondary border border-border flex items-center justify-center mb-4">
-                  <svg className="h-8 w-8 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <p className="text-white font-medium mb-2">Your results will appear here</p>
-                <p className="text-muted text-sm">Upload an image and click Analyze to begin</p>
-                <div className="flex gap-2 mt-6 flex-wrap justify-center">
-                  {['TFLite Model', 'Gemini AI', 'Multilingual', '4 Languages'].map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-medium border border-accent/20"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-            {loading && <AnalysisProgress />}
-            {result && (
-              <ResultCard
-                result={result as unknown as ScanResult}
-                language={language}
-                centres={[]}
-                onNewScan={() => { setResult(null); setFile(null); setSymptoms(defaultSymptoms); }}
-              />
-            )}
+            <p className="crumb">{T.scan_crumb}</p>
+            <h1>{T.scan_title}</h1>
           </div>
         </div>
       </div>
+
+      <div className="scan-wrap">
+        <div className="scan-card">
+          {/* Step bar */}
+          <div className="scan-stepbar">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className={`dot ${(file ? 1 : 0) + (symptomsComplete ? 1 : 0) + (result ? 1 : 0) > i ? 'on' : ''}`} />
+            ))}
+          </div>
+
+          {/* Step 1: Scan type */}
+          <p className="scan-label">1. {T.scan_step1.replace('1. ', '')}</p>
+          <div className="pick-two" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
+            {SCAN_TYPES.map((t) => (
+              <div key={t.value} className={`pick ${scanType === t.value ? 'on' : ''}`} onClick={() => setScanType(t.value)}>
+                <div className="ico"><span style={{ fontSize: '32px' }}>{t.emoji}</span></div>
+                <h4>{t.label}</h4>
+                <p>{t.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Step 2: Upload */}
+          <p className="scan-label" style={{ marginTop: '24px' }}>2. {T.scan_step2.replace('2. ', '')}</p>
+          <label
+            className={`uploader ${preview ? 'has' : ''}`}
+            onDrop={handleDrop}
+            onDragOver={(e) => e.preventDefault()}
+          >
+            <input ref={inputRef} type="file" accept="image/*" style={{ display: 'none' }}
+              onChange={(e) => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }} />
+            {preview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={preview} alt="Preview" style={{ width: '100%', maxHeight: '220px', objectFit: 'cover', borderRadius: '14px' }} />
+            ) : (
+              <>
+                <div className="ico"><span style={{ fontSize: '36px' }}>📷</span></div>
+                <h4>{T.scan_upload_hint}</h4>
+                <p>{T.scan_upload_sub}</p>
+              </>
+            )}
+          </label>
+
+          {preview && (
+            <button type="button" onClick={() => { setFile(null); setPreview(null); setResult(null); }}
+              style={{ background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: '13px', fontWeight: 700, cursor: 'pointer', marginTop: '4px' }}>
+              {T.scan_remove}
+            </button>
+          )}
+
+          <div className="help-tips">
+            <b>{T.scan_tips}</b>
+            {T.scan_tips_body}
+          </div>
+
+          {/* Step 3: Symptom questionnaire (mandatory) */}
+          <div style={{ marginTop: '24px', border: `1.5px solid ${symptomsComplete ? 'var(--brand)' : showSymptomsWarning ? 'var(--danger)' : 'var(--line)'}`, borderRadius: '18px', overflow: 'hidden', transition: 'border-color 0.2s' }}>
+            <button
+              type="button"
+              onClick={() => setShowSymptoms(!showSymptoms)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '16px 20px', background: showSymptoms ? 'var(--brand-soft)' : 'var(--surface)',
+                border: 'none', cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.15s',
+              }}
+            >
+              <div style={{ textAlign: 'left' }}>
+                <p style={{ fontWeight: 700, fontSize: '12px', color: 'var(--ink)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  3. {T.scan_step3.replace('3. ', '')}
+                  {symptomsCount > 0 && (
+                    <span style={{ marginLeft: '8px', background: 'var(--brand)', color: '#fff', borderRadius: '999px', padding: '2px 8px', fontSize: '11px' }}>
+                      {symptomsCount}
+                    </span>
+                  )}
+                  {symptomsComplete && (
+                    <span style={{ marginLeft: '8px', background: 'var(--brand)', color: '#fff', borderRadius: '999px', padding: '2px 8px', fontSize: '11px' }}>
+                      ✓
+                    </span>
+                  )}
+                </p>
+                <p style={{ fontSize: '13px', color: 'var(--ink-soft)', marginTop: '2px' }}>
+                  {T.scan_step3_sub}
+                </p>
+                {showSymptomsWarning && !symptomsComplete && (
+                  <p style={{ fontSize: '12px', color: 'var(--danger)', marginTop: '4px', fontWeight: 600 }}>
+                    {T.scan_required_msg}
+                  </p>
+                )}
+              </div>
+              <span style={{ fontSize: '18px', color: symptomsComplete ? 'var(--brand)' : 'var(--brand)', fontWeight: 700 }}>{showSymptoms ? '▲' : '▼'}</span>
+            </button>
+
+            {showSymptoms && (
+              <div style={{ padding: '20px', borderTop: '1px solid var(--line)', background: 'var(--bg)' }}>
+                <SymptomQuestionnaire
+                  scanType={scanType === 'other' ? 'oral' : scanType}
+                  onChange={setSymptoms}
+                  onComplete={setSymptomsComplete}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Step 4: Language */}
+          <p className="scan-label" style={{ marginTop: '24px' }}>4. {T.scan_step4.replace('4. ', '')}</p>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', flexWrap: 'wrap' }}>
+            {LANGS.map((l) => (
+              <button key={l.code} onClick={() => setLanguage(l.code)}
+                style={{
+                  border: `2px solid ${language === l.code ? 'var(--brand)' : 'var(--line)'}`,
+                  background: language === l.code ? 'var(--brand)' : 'var(--surface)',
+                  color: language === l.code ? '#fff' : 'var(--ink-soft)',
+                  borderRadius: '999px', padding: '6px 18px', fontWeight: 700, fontSize: '14px',
+                  cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
+                }}>
+                {l.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Analyze */}
+          {!result && (
+            <button
+              className={`btn full ${!file || loading || !symptomsComplete ? 'disabled' : ''}`}
+              onClick={handleAnalyze}
+              disabled={!file || loading}
+              style={{ opacity: !file || !symptomsComplete ? 0.65 : 1 }}
+            >
+              {loading ? T.scan_analysing : T.scan_analyse}
+            </button>
+          )}
+
+          {!symptomsComplete && file && !loading && (
+            <p style={{ textAlign: 'center', fontSize: '12px', color: 'var(--ink-soft)', marginTop: '8px' }}>
+              ↑ Complete symptom assessment to enable analysis
+            </p>
+          )}
+
+          {loading && (
+            <div className="progress-box">
+              <div className="progress-ring">
+                <svg width="96" height="96" viewBox="0 0 96 96">
+                  <circle cx="48" cy="48" r="40" fill="none" stroke="var(--line)" strokeWidth="8" />
+                  <circle cx="48" cy="48" r="40" fill="none" stroke="var(--brand)" strokeWidth="8"
+                    strokeDasharray="251" strokeDashoffset="63" strokeLinecap="round">
+                    <animateTransform attributeName="transform" type="rotate" from="0 48 48" to="360 48 48" dur="1s" repeatCount="indefinite" />
+                  </circle>
+                </svg>
+                <div className="pct">AI</div>
+              </div>
+              <p style={{ fontWeight: 700, marginBottom: '4px' }}>{T.scan_ai_label}</p>
+              <p style={{ color: 'var(--ink-soft)', fontSize: '14px' }}>{T.scan_ai_sub}</p>
+            </div>
+          )}
+
+          {error && (
+            <div style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger)', borderRadius: '14px', padding: '16px', marginTop: '16px', color: 'var(--danger)', fontSize: '14px', fontFamily: 'monospace' }}>
+              ⚠ {error}
+            </div>
+          )}
+
+          {result && (
+            <div style={{ marginTop: '24px' }}>
+              <ResultCard result={result as unknown as ScanResult} language={language} centres={[]} onNewScan={reset} />
+            </div>
+          )}
+        </div>
+      </div>
+
+      <Footer />
     </div>
   );
 }

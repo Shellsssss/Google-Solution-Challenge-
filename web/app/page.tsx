@@ -1,25 +1,25 @@
 import Navbar from '@/components/shared/Navbar';
 import Footer from '@/components/shared/Footer';
 import HeroSection from '@/components/landing/HeroSection';
-import StatsSection from '@/components/landing/StatsSection';
+import DualCtaSection from '@/components/landing/DualCtaSection';
 import HowItWorksSection from '@/components/landing/HowItWorksSection';
-import RiskLevelsSection from '@/components/landing/RiskLevelsSection';
-import TechSection from '@/components/landing/TechSection';
-import DemoSection from '@/components/landing/DemoSection';
-import ImpactSection from '@/components/landing/ImpactSection';
+import ReassureSection from '@/components/landing/ReassureSection';
+import QuoteBandSection from '@/components/landing/QuoteBandSection';
+import PhoneDemoSection from '@/components/landing/PhoneDemoSection';
+import FaqSection from '@/components/landing/FaqSection';
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-background-primary">
+    <div>
       <Navbar />
       <main>
         <HeroSection />
-        <StatsSection />
+        <DualCtaSection />
         <HowItWorksSection />
-        <RiskLevelsSection />
-        <TechSection />
-        <DemoSection />
-        <ImpactSection />
+        <ReassureSection />
+        <QuoteBandSection />
+        <PhoneDemoSection />
+        <FaqSection />
       </main>
       <Footer />
     </div>

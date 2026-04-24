@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_strings.dart';
@@ -38,17 +39,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return _all;
   }
 
-  Color _riskColor(RiskLevel r) => switch (r) {
-    RiskLevel.low     => context.success,
-    RiskLevel.high    => context.danger,
-    RiskLevel.invalid => context.warning,
-  };
-
-  String _riskLabel(RiskLevel r, AppStrings s) => switch (r) {
-    RiskLevel.low     => s.resultLowRisk,
-    RiskLevel.high    => s.resultHighRisk,
-    RiskLevel.invalid => s.resultInvalid,
-  };
+  (Color bg, Color fg, IconData icon, String label) _riskStyle(RiskLevel r, AppStrings s) =>
+      switch (r) {
+        RiskLevel.low     => (JaColors.brandSoft, JaColors.brand,  Icons.check_circle_outline, s.resultLowRisk),
+        RiskLevel.high    => (JaColors.dangerSoft, JaColors.danger, Icons.warning_amber_outlined, s.resultHighRisk),
+        RiskLevel.invalid => (JaColors.warnSoft,   JaColors.warn,   Icons.camera_alt_outlined, s.resultInvalid),
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -56,154 +52,148 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final s    = AppStrings(lang);
 
     return Scaffold(
-      backgroundColor: context.primaryBg,
+      backgroundColor: JaColors.bg,
       appBar: AppBar(
-        title: Text(s.historyTitle),
+        title: Text('Past checks',
+            style: GoogleFonts.nunito(fontSize: 22, fontWeight: FontWeight.w800, color: JaColors.ink)),
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh_outlined, color: context.textSec),
+            icon: const Icon(Icons.refresh_outlined, color: JaColors.inkSoft),
             onPressed: _load,
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: JaColors.line),
+        ),
       ),
-      body: Column(
-        children: [
-          // Filter chips
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(children: [
-                _Chip(label: s.historyFilterAll,  value: 'all',     current: _filter, onTap: (v) => setState(() => _filter = v)),
-                const SizedBox(width: 8),
-                _Chip(label: s.historyFilterLow,  value: 'low',     current: _filter, onTap: (v) => setState(() => _filter = v), color: context.success),
-                const SizedBox(width: 8),
-                _Chip(label: s.historyFilterHigh, value: 'high',    current: _filter, onTap: (v) => setState(() => _filter = v), color: context.danger),
-                const SizedBox(width: 8),
-                _Chip(label: s.historyFilterInv,  value: 'invalid', current: _filter, onTap: (v) => setState(() => _filter = v), color: context.warning),
-              ]),
-            ),
+      body: Column(children: [
+        // ── Filter chips ───────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              _FilterChip(label: s.historyFilterAll,  value: 'all',     current: _filter, onTap: (v) => setState(() => _filter = v)),
+              const SizedBox(width: 8),
+              _FilterChip(label: s.historyFilterLow,  value: 'low',     current: _filter, onTap: (v) => setState(() => _filter = v), activeColor: JaColors.brand),
+              const SizedBox(width: 8),
+              _FilterChip(label: s.historyFilterHigh, value: 'high',    current: _filter, onTap: (v) => setState(() => _filter = v), activeColor: JaColors.danger),
+              const SizedBox(width: 8),
+              _FilterChip(label: s.historyFilterInv,  value: 'invalid', current: _filter, onTap: (v) => setState(() => _filter = v), activeColor: JaColors.warn),
+            ]),
           ),
-          Divider(height: 1, color: context.border),
+        ),
+        Container(height: 1, color: JaColors.line),
 
-          if (_loading)
-            Expanded(child: Center(child: CircularProgressIndicator(color: context.accent)))
-          else if (_filtered.isEmpty)
-            Expanded(child: _EmptyState(s: s))
-          else
-            Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: _filtered.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (_, i) {
-                  final r       = _filtered[i];
-                  final dateStr = DateFormat('dd MMM yyyy, hh:mm a').format(r.timestamp);
-                  final rColor  = _riskColor(r.riskLevel);
-                  final rLabel  = _riskLabel(r.riskLevel, s);
+        // ── Content ────────────────────────────────────────────────────
+        if (_loading)
+          const Expanded(child: Center(child: CircularProgressIndicator(color: JaColors.brand)))
+        else if (_filtered.isEmpty)
+          Expanded(child: _EmptyState(s: s))
+        else
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: _filtered.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (_, i) {
+                final r = _filtered[i];
+                final (bg, fg, icon, label) = _riskStyle(r.riskLevel, s);
+                final dateStr = DateFormat('dd MMM yyyy, hh:mm a').format(r.timestamp);
 
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: context.cardBg,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: context.border),
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: JaColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: JaColors.line),
+                    boxShadow: JaColors.cardShadow,
+                  ),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    // Icon circle
+                    Container(
+                      width: 48, height: 48,
+                      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
+                      child: Icon(icon, color: fg, size: 22),
                     ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      leading: Container(
-                        width: 44, height: 44,
-                        decoration: BoxDecoration(
-                          color: rColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          r.scanType == ScanType.oral
-                              ? Icons.face_outlined
-                              : Icons.back_hand_outlined,
-                          color: rColor, size: 22,
-                        ),
-                      ),
-                      title: Row(children: [
+                    const SizedBox(width: 14),
+                    // Main info
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Row(children: [
                         Text(r.scanLabel,
-                            style: TextStyle(
-                                color: context.textPrimary,
-                                fontSize: 14, fontWeight: FontWeight.w600)),
+                            style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w700, color: JaColors.ink)),
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                           decoration: BoxDecoration(
-                            color: rColor.withValues(alpha: 0.12),
+                            color: bg,
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                                color: rColor.withValues(alpha: 0.4)),
+                            border: Border.all(color: fg.withValues(alpha: 0.3)),
                           ),
-                          child: Text(rLabel,
-                              style: TextStyle(
-                                  color: rColor, fontSize: 11,
-                                  fontWeight: FontWeight.w600)),
+                          child: Text(label,
+                              style: GoogleFonts.notoSans(fontSize: 11, fontWeight: FontWeight.w700, color: fg)),
                         ),
                       ]),
-                      subtitle: Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(dateStr,
-                            style: TextStyle(
-                                color: context.textSec, fontSize: 12)),
-                      ),
-                      trailing: Text(
-                        '${(r.confidence * 100).toStringAsFixed(0)}%',
-                        style: TextStyle(
-                            color: rColor, fontSize: 13,
-                            fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  );
-                },
-              ),
+                      const SizedBox(height: 4),
+                      Text(dateStr,
+                          style: GoogleFonts.notoSans(fontSize: 12, color: JaColors.inkSoft)),
+                    ])),
+                    // Confidence
+                    Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                      Text('${(r.confidence * 100).toStringAsFixed(0)}%',
+                          style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w800, color: fg)),
+                      Text('confidence',
+                          style: GoogleFonts.notoSans(fontSize: 11, color: JaColors.inkSoft)),
+                    ]),
+                  ]),
+                );
+              },
             ),
-        ],
-      ),
+          ),
+      ]),
     );
   }
 }
 
-class _Chip extends StatelessWidget {
+class _FilterChip extends StatelessWidget {
   final String label;
   final String value;
   final String current;
   final void Function(String) onTap;
-  final Color? color;
+  final Color activeColor;
 
-  const _Chip({
+  const _FilterChip({
     required this.label,
     required this.value,
     required this.current,
     required this.onTap,
-    this.color,
+    this.activeColor = JaColors.brand,
   });
 
   @override
   Widget build(BuildContext context) {
-    final active      = current == value;
-    final activeColor = color ?? context.accent;
-
+    final active = current == value;
     return GestureDetector(
       onTap: () => onTap(value),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: active ? activeColor : context.cardBg,
+          color: active ? activeColor : JaColors.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-              color: active ? activeColor : context.border),
+            color: active ? activeColor : JaColors.line,
+            width: active ? 1.5 : 1,
+          ),
         ),
         child: Text(label,
-            style: TextStyle(
-                color: active ? Colors.white : context.textSec,
-                fontSize: 13, fontWeight: FontWeight.w500)),
+            style: GoogleFonts.notoSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: active ? Colors.white : JaColors.inkSoft,
+            )),
       ),
     );
   }
@@ -216,22 +206,20 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.history_outlined,
-              color: context.textSec.withValues(alpha: 0.4), size: 64),
-          const SizedBox(height: 16),
-          Text(s.historyEmpty,
-              style: TextStyle(
-                  color: context.textPrimary, fontSize: 16,
-                  fontWeight: FontWeight.w600)),
-          const SizedBox(height: 6),
-          Text(s.historyEmptyHint,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: context.textSec, fontSize: 13)),
-        ],
-      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          width: 80, height: 80,
+          decoration: BoxDecoration(color: JaColors.brandSoft, borderRadius: BorderRadius.circular(20)),
+          child: const Icon(Icons.history_outlined, color: JaColors.brand, size: 40),
+        ),
+        const SizedBox(height: 20),
+        Text(s.historyEmpty,
+            style: GoogleFonts.nunito(fontSize: 20, fontWeight: FontWeight.w700, color: JaColors.ink)),
+        const SizedBox(height: 6),
+        Text(s.historyEmptyHint,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.notoSans(fontSize: 14, color: JaColors.inkSoft)),
+      ]),
     );
   }
 }

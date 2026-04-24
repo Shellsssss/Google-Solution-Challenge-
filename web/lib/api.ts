@@ -22,7 +22,7 @@ import type {
   User,
 } from '@/types';
 
-export const API_BASE = 'http://localhost:8000/api/v1';
+export const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000') + '/api/v1';
 
 // ─── Helper ─────────────────────────────────────────────
 function authHeaders(): Record<string, string> {
@@ -141,12 +141,13 @@ export async function analyzeScan(formData: FormData): Promise<ScanResult> {
 export async function analyzeBase64(
   image_base64: string,
   scan_type: ScanType,
-  symptoms?: Record<string, string>
+  symptoms?: Record<string, string>,
+  language: Language = 'en'
 ): Promise<AnalysisResult> {
   const res = await fetch(`${API_BASE}/analyze`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ image_base64, scan_type, symptoms: symptoms ?? null }),
+    body: JSON.stringify({ image_base64, scan_type, symptoms: symptoms ?? null, language }),
   });
   return handleResponse<AnalysisResult>(res);
 }

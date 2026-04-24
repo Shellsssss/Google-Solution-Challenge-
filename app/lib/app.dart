@@ -9,14 +9,12 @@ class JanArogyaApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<AppProvider>();
+    context.watch<AppProvider>(); // rebuild on lang change
 
     return MaterialApp(
       title: 'JanArogya',
       debugShowCheckedModeBanner: false,
-      themeMode: provider.themeMode,
-      theme:     AppTheme.light(),
-      darkTheme: AppTheme.dark(),
+      theme: AppTheme.get(),
       home: const SplashScreen(),
     );
   }

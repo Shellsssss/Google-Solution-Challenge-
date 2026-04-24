@@ -1,16 +1,14 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import '../config.dart';
 
 class ApiService {
   ApiService._();
   static final ApiService _instance = ApiService._();
   factory ApiService() => _instance;
 
-  static const String _baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000',
-  );
+  static String get _baseUrl => AppConfig.apiBaseUrl;
 
   /// Fetch symptom questions for a scan type.
   Future<List<Map<String, dynamic>>> getSymptomQuestions(String scanType) async {
