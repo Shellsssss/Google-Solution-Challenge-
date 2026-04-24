@@ -12,19 +12,22 @@ logger = logging.getLogger(__name__)
 # ── Initialization (runs once at import) ──────────────────────────────────────
 
 def _init_firebase() -> bool:
-    """Initialize Firebase Admin SDK from service account key.
-    Returns True on success, False if credentials are missing/invalid.
+    """Initialize Firebase Admin SDK.
+    Tries FIREBASE_CREDENTIALS_JSON env var first (production/Render),
+    then falls back to FIREBASE_CREDENTIALS_PATH file (local dev).
     """
-    cred_path = os.getenv("FIREBASE_CREDENTIALS_PATH", "")
-    if not cred_path:
-        logger.warning("FIREBASE_CREDENTIALS_PATH not set — Firebase disabled")
-        return False
-    if not os.path.exists(cred_path):
-        logger.warning("Firebase credentials file not found: %s — Firebase disabled", cred_path)
-        return False
-
+    import json
     try:
-        cred = credentials.Certificate(cred_path)
+        cred_json = os.getenv("FIREBASE_CREDENTIALS_JSON", "")
+        if cred_json:
+            cred = credentials.Certificate(json.loads(cred_json))
+        else:
+            cred_path = os.getenv("FIREBASE_CREDENTIALS_PATH", "")
+            if not cred_path or not os.path.exists(cred_path):
+                logger.warning("Firebase credentials not found — Firebase disabled")
+                return False
+            cred = credentials.Certificate(cred_path)
+
         firebase_admin.initialize_app(cred, {
             "storageBucket": os.getenv("FIREBASE_STORAGE_BUCKET", ""),
         })

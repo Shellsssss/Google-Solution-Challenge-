@@ -9,18 +9,29 @@ from PIL import Image, ImageOps, ImageEnhance
 
 logger = logging.getLogger(__name__)
 
-# Prefer ai-edge-litert → tflite_runtime → tensorflow fallback
+# Prefer ai-edge-litert → tflite_runtime → tensorflow → stub fallback
+_Interpreter = None
 try:
     from ai_edge_litert.interpreter import Interpreter as _Interpreter
     logger.info("Using ai-edge-litert for TFLite inference")
-except ImportError:
+except Exception:
+    pass
+
+if _Interpreter is None:
     try:
         from tflite_runtime.interpreter import Interpreter as _Interpreter
         logger.info("Using tflite_runtime for TFLite inference")
-    except ImportError:
+    except Exception:
+        pass
+
+if _Interpreter is None:
+    try:
         import tensorflow as tf
         _Interpreter = tf.lite.Interpreter
         logger.info("Using tensorflow.lite for TFLite inference")
+    except Exception as e:
+        logger.warning("All TFLite runtimes unavailable (%s) — inference will use Gemini-only fallback", e)
+        _Interpreter = None
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 _BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -69,6 +80,8 @@ def _load_labels(scan_type: str) -> list[str]:
 # ── Interpreter loading ───────────────────────────────────────────────────────
 
 def _get_interpreter(scan_type: str):
+    if _Interpreter is None:
+        raise RuntimeError("No TFLite runtime available — inference disabled")
     if scan_type not in _interpreters:
         path = _MODEL_PATHS.get(scan_type)
         if not path or not os.path.exists(path):
@@ -90,25 +103,11 @@ def _get_interpreter(scan_type: str):
 
 def _preprocess(image_bytes: bytes) -> np.ndarray:
     """
-    Convert raw JPEG/PNG bytes → (1, 224, 224, 3) float32 array in [0, 1].
-    Applies auto-contrast enhancement to handle dark/low-light mouth photos.
-    Uses center-crop to preserve aspect ratio before resize.
+    Match training preprocessing: plain resize + normalise to [0, 1].
+    No center-crop or autocontrast — those shift input distribution away
+    from what the model saw during training.
     """
     img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-
-    # Center-crop to square (preserves aspect ratio better than squish)
-    w, h = img.size
-    side = min(w, h)
-    left = (w - side) // 2
-    top  = (h - side) // 2
-    img = img.crop((left, top, left + side, top + side))
-
-    # Auto-contrast enhancement — helps dark/indoor mouth photos
-    img = ImageOps.autocontrast(img, cutoff=1)
-
-    # Mild sharpening to improve edge visibility
-    img = ImageEnhance.Sharpness(img).enhance(1.3)
-
     img = img.resize((_INPUT_SIZE, _INPUT_SIZE), Image.BILINEAR)
     arr = np.array(img, dtype=np.float32) / 255.0
     return np.expand_dims(arr, axis=0)   # (1, 224, 224, 3)

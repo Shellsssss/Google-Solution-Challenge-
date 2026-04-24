@@ -1,75 +1,45 @@
-import { cn } from '@/lib/utils';
-import { cva, type VariantProps } from 'class-variance-authority';
 import { forwardRef } from 'react';
 
-const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-background-primary disabled:opacity-50 disabled:cursor-not-allowed select-none',
-  {
-    variants: {
-      variant: {
-        primary:
-          'bg-accent text-white hover:bg-accent-hover shadow-lg shadow-accent/20 active:scale-95',
-        secondary:
-          'bg-background-card text-foreground border border-border hover:border-border-light hover:bg-border active:scale-95',
-        ghost:
-          'text-foreground hover:bg-background-card active:scale-95',
-        danger:
-          'bg-danger text-white hover:bg-red-600 shadow-lg shadow-danger/20 active:scale-95',
-        outline:
-          'border border-accent text-accent hover:bg-accent hover:text-white active:scale-95',
-        success:
-          'bg-success text-white hover:bg-emerald-600 shadow-lg shadow-success/20 active:scale-95',
-      },
-      size: {
-        sm: 'px-3 py-1.5 text-sm',
-        md: 'px-4 py-2 text-sm',
-        lg: 'px-6 py-3 text-base',
-        xl: 'px-8 py-4 text-lg',
-        icon: 'h-9 w-9',
-      },
-    },
-    defaultVariants: {
-      variant: 'primary',
-      size: 'md',
-    },
-  }
-);
-
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline' | 'success';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'icon';
   isLoading?: boolean;
+  className?: string;
 }
 
+const variantClass: Record<string, string> = {
+  primary:   'btn',
+  secondary: 'btn outline',
+  ghost:     'btn ghost',
+  danger:    'btn danger-btn',
+  outline:   'btn outline',
+  success:   'btn',
+};
+
+const sizeStyle: Record<string, React.CSSProperties> = {
+  sm:   { padding: '7px 14px', fontSize: '13px', borderRadius: '10px' },
+  md:   { padding: '10px 18px', fontSize: '14px' },
+  lg:   { padding: '14px 22px', fontSize: '16px' },
+  xl:   { padding: '18px 28px', fontSize: '18px', borderRadius: '18px' },
+  icon: { padding: '10px', width: '40px', height: '40px' },
+};
+
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, isLoading, children, disabled, ...props }, ref) => {
+  ({ className, variant = 'primary', size = 'md', isLoading, children, disabled, style, ...props }, ref) => {
+    const cls = [variantClass[variant] ?? 'btn', className].filter(Boolean).join(' ');
     return (
       <button
         ref={ref}
-        className={cn(buttonVariants({ variant, size, className }))}
+        className={cls}
         disabled={disabled || isLoading}
+        style={{ ...sizeStyle[size], ...style }}
         {...props}
       >
         {isLoading && (
-          <svg
-            className="h-4 w-4 animate-spin"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-            />
+          <svg className="animate-spin" style={{ width: 16, height: 16, flexShrink: 0 }}
+            xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
         )}
         {children}
@@ -79,4 +49,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 );
 Button.displayName = 'Button';
 
-export { Button, buttonVariants };
+// eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+export const buttonVariants = (...args: any[]) => 'btn';
+
+export { Button };

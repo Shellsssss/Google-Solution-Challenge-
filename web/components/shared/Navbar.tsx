@@ -1,161 +1,73 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { useTheme } from 'next-themes';
-import { Menu, X, Sun, Moon, Activity } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
 import { useAppStore } from '@/store';
-import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
+import type { Language } from '@/types';
 
-const navLinks = [
-  { label: 'Home', href: '/' },
-  { label: 'How It Works', href: '/#how-it-works' },
-  { label: 'About', href: '/about' },
+const LANGS: { code: Language; label: string }[] = [
+  { code: 'en', label: 'EN' },
+  { code: 'hi', label: 'HI' },
+  { code: 'ta', label: 'TA' },
+  { code: 'te', label: 'TE' },
 ];
 
 export default function Navbar() {
-  const [scrolled, setScrolled] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const { theme, setTheme } = useTheme();
-  const { user, logout } = useAppStore();
-  const pathname = usePathname();
-  const router = useRouter();
-
-  useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handler, { passive: true });
-    return () => window.removeEventListener('scroll', handler);
-  }, []);
-
-  const handleLogout = () => {
-    logout();
-    router.push('/');
-  };
+  const { language, setLanguage } = useAppStore();
+  const T = useT();
 
   return (
-    <nav
-      className={cn(
-        'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
-        scrolled
-          ? 'backdrop-blur-md bg-background-primary/80 border-b border-border shadow-lg shadow-black/20'
-          : 'bg-transparent'
-      )}
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center group-hover:bg-accent-hover transition-colors">
-              <Activity className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <span className="text-lg font-bold text-white">JanArogya</span>
-              <div className="text-xs text-muted leading-none">जनआरोग्य</div>
-            </div>
-          </Link>
+    <nav className="topbar">
+      <div className="topbar-inner">
+        {/* Brand */}
+        <Link href="/" className="brand">
+          <span className="brand-mark">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M10 2C10 2 4 5 4 10.5C4 14.09 6.69 17 10 17C13.31 17 16 14.09 16 10.5C16 5 10 2 10 2Z" fill="white"/>
+              <path d="M10 8V13M7.5 10.5H12.5" stroke="#1f7a5a" strokeWidth="1.8" strokeLinecap="round"/>
+            </svg>
+          </span>
+          <span className="brand-name">
+            Jan<span className="c">Arogya</span>
+          </span>
+        </Link>
 
-          {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-6">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  'text-sm font-medium transition-colors hover:text-white',
-                  pathname === link.href ? 'text-white' : 'text-muted'
-                )}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </div>
+        <div className="top-spacer" />
 
-          {/* Right side */}
-          <div className="hidden md:flex items-center gap-3">
-            <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-2 rounded-lg text-muted hover:text-white hover:bg-background-card transition-all"
-              aria-label="Toggle theme"
-            >
-              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </button>
-
-            {user ? (
-              <>
-                <Link href="/dashboard">
-                  <Button variant="secondary" size="sm">Dashboard</Button>
-                </Link>
-                <Button variant="ghost" size="sm" onClick={handleLogout}>
-                  Logout
-                </Button>
-              </>
-            ) : (
-              <>
-                <Link href="/login">
-                  <Button variant="ghost" size="sm">Login</Button>
-                </Link>
-                <Link href="/scan">
-                  <Button variant="primary" size="sm">Try Now</Button>
-                </Link>
-              </>
-            )}
-          </div>
-
-          {/* Mobile hamburger */}
-          <button
-            className="md:hidden p-2 text-muted hover:text-white transition-colors"
-            onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label="Toggle menu"
-          >
-            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
+        {/* Nav links — desktop */}
+        <div className="top-links" style={{ display: 'none' }} id="desk-nav">
+          <Link href="/#how-it-works" className="top-link">{T.nav_how}</Link>
+          <Link href="/scan" className="top-link">{T.nav_scan}</Link>
+          <Link href="/about" className="top-link">{T.nav_about}</Link>
         </div>
+
+        {/* Language switcher — connected to global store */}
+        <div className="lang-switch">
+          {LANGS.map((l) => (
+            <button
+              key={l.code}
+              className={language === l.code ? 'on' : ''}
+              onClick={() => setLanguage(l.code)}
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Sign in */}
+        <Link href="/login">
+          <button className="btn ghost" style={{ padding: '8px 16px', fontSize: '14px' }}>
+            {T.nav_signin}
+          </button>
+        </Link>
       </div>
 
-      {/* Mobile drawer */}
-      {mobileOpen && (
-        <div className="md:hidden absolute top-full left-0 right-0 bg-background-secondary border-b border-border shadow-xl">
-          <div className="px-4 py-4 flex flex-col gap-3">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="text-sm font-medium text-muted hover:text-white py-2 border-b border-border last:border-0 transition-colors"
-                onClick={() => setMobileOpen(false)}
-              >
-                {link.label}
-              </Link>
-            ))}
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="p-2 rounded-lg text-muted hover:text-white hover:bg-background-card transition-all"
-              >
-                {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </button>
-              {user ? (
-                <>
-                  <Link href="/dashboard" className="flex-1">
-                    <Button variant="secondary" size="sm" className="w-full">Dashboard</Button>
-                  </Link>
-                  <Button variant="ghost" size="sm" onClick={handleLogout}>Logout</Button>
-                </>
-              ) : (
-                <>
-                  <Link href="/login" className="flex-1">
-                    <Button variant="ghost" size="sm" className="w-full">Login</Button>
-                  </Link>
-                  <Link href="/scan" className="flex-1">
-                    <Button variant="primary" size="sm" className="w-full">Try Now</Button>
-                  </Link>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Inline desktop nav styles */}
+      <style>{`
+        @media (min-width: 640px) {
+          #desk-nav { display: flex !important; }
+        }
+      `}</style>
     </nav>
   );
 }

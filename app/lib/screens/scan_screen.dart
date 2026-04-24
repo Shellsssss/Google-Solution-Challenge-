@@ -31,8 +31,9 @@ class ScanScreen extends StatefulWidget {
 }
 
 class _ScanScreenState extends State<ScanScreen> {
-  String _status = '';
-  int    _step   = 0;  // 0=loading, 1=on-device, 2=backend, 3=done
+  String _status       = '';
+  int    _step         = 0;  // 0=loading, 1=on-device, 2=backend, 3=done
+  bool   _offlineMode  = false; // true if backend was unreachable
 
   @override
   void initState() {
@@ -79,6 +80,7 @@ class _ScanScreenState extends State<ScanScreen> {
         result = local.copyWith(
           symptoms: widget.symptoms.isEmpty ? null : widget.symptoms,
         );
+        setState(() => _offlineMode = true);
       }
 
       setState(() => _step = 3);
@@ -169,6 +171,23 @@ class _ScanScreenState extends State<ScanScreen> {
                     ),
                     const SizedBox(height: 16),
                     _StepRow(step: _step, lang: lang),
+                    if (_offlineMode) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: context.warning.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: context.warning.withValues(alpha: 0.4)),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(Icons.cloud_off_outlined, size: 16, color: context.warning),
+                          const SizedBox(width: 6),
+                          Text('Cloud AI unavailable — using on-device result',
+                              style: TextStyle(fontSize: 12, color: context.warning)),
+                        ]),
+                      ),
+                    ],
                     if (_status.startsWith('Error')) ...[
                       const SizedBox(height: 16),
                       Text(_status,

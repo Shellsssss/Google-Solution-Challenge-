@@ -1,7 +1,6 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  darkMode: "class",
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -10,42 +9,52 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Background tokens
         background: {
-          primary: 'var(--bg-primary)',
+          primary:   'var(--bg-primary)',
           secondary: 'var(--bg-secondary)',
-          card: 'var(--bg-card)',
+          card:      'var(--bg-card)',
         },
+        // Named design tokens — with alpha-value support via RGB tuples
         accent: {
-          DEFAULT: 'rgb(var(--accent) / <alpha-value>)',
-          hover: 'rgb(var(--accent-hover) / <alpha-value>)',
-          light: 'rgb(var(--accent-light) / <alpha-value>)',
+          DEFAULT: 'rgb(var(--accent-tw) / <alpha-value>)',
+          hover:   'var(--accent-hover-hex)',
+          light:   'var(--accent-light-hex)',
         },
-        success: 'rgb(var(--success) / <alpha-value>)',
-        warning: 'rgb(var(--warning) / <alpha-value>)',
-        danger: 'rgb(var(--danger) / <alpha-value>)',
-        muted: 'rgb(var(--muted) / <alpha-value>)',
-        foreground: 'rgb(var(--foreground) / <alpha-value>)',
+        brand: {
+          DEFAULT: 'rgb(var(--brand-tw) / <alpha-value>)',
+          dark:    'var(--brand-dark)',
+          soft:    'var(--brand-soft)',
+        },
+        success: 'rgb(var(--success-tw) / <alpha-value>)',
+        warning: 'rgb(var(--warning-tw) / <alpha-value>)',
+        danger:  'rgb(var(--danger-tw) / <alpha-value>)',
+        muted:   'rgb(var(--muted-tw) / <alpha-value>)',
+        foreground: 'rgb(var(--foreground-tw) / <alpha-value>)',
+        // Border tokens
         border: {
-          DEFAULT: 'var(--border)',
-          light: 'var(--border-light)',
+          DEFAULT: 'var(--line)',
+          light:   'var(--border-lt)',
         },
+        // Ink tokens
+        ink: {
+          DEFAULT: 'var(--ink)',
+          soft:    'var(--ink-soft)',
+        },
+        // Surface
+        surface: 'var(--surface)',
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        sans: ['var(--font-noto)', 'Noto Sans', 'sans-serif'],
+        head: ['var(--font-nunito)', 'Nunito', 'sans-serif'],
       },
-      animation: {
-        'float': 'float 3s ease-in-out infinite',
-        'float-delayed': 'float 3s ease-in-out infinite 1s',
-        'float-delayed-2': 'float 3s ease-in-out infinite 2s',
-        'pulse-slow': 'pulse 3s ease-in-out infinite',
-        'count-up': 'count-up 2s ease-out forwards',
-        'typewriter': 'typewriter 2s steps(20) infinite',
+      borderRadius: {
+        's': 'var(--radius-s)',
+        DEFAULT: 'var(--radius)',
+        'l': 'var(--radius-l)',
       },
-      keyframes: {
-        float: {
-          '0%, 100%': { transform: 'translateY(0px)' },
-          '50%': { transform: 'translateY(-10px)' },
-        },
+      boxShadow: {
+        'ja': 'var(--shadow)',
       },
     },
   },

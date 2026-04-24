@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { ChevronRight, ChevronLeft, Sparkles, Loader2, AlertCircle } from 'lucide-react';
+import { useT } from '@/lib/i18n';
 
 export interface SymptomData {
   selected_symptoms: string[];
@@ -15,6 +15,7 @@ export interface SymptomData {
 interface Props {
   scanType: 'oral' | 'skin' | 'other';
   onChange: (data: SymptomData) => void;
+  onComplete: (complete: boolean) => void;
 }
 
 const ORAL_SYMPTOMS = [
@@ -23,46 +24,36 @@ const ORAL_SYMPTOMS = [
   'Bleeding gums', 'Ear pain', 'Loose teeth', 'Voice changes',
   'Numbness in mouth', 'Persistent bad breath',
 ];
-
 const SKIN_SYMPTOMS = [
   'New mole or growth', 'Existing mole changing', 'Irregular border',
   'Multiple colours in lesion', 'Spontaneous bleeding', 'Itching or burning',
   'Lesion larger than 6mm', 'Non-healing sore', 'Shiny or pearly bump',
   'Scaly or crusty patch', 'Dark streak under nail', 'Raised red patch',
 ];
-
 const DURATIONS = [
-  { value: '< 1 week', label: '< 1 week', sub: 'Just started' },
-  { value: '1–4 weeks', label: '1–4 weeks', sub: 'A few weeks' },
-  { value: '1–3 months', label: '1–3 months', sub: 'Several months' },
-  { value: '> 3 months', label: '> 3 months', sub: 'Long-standing' },
+  { value: '< 1 week', sub: 'Just started' },
+  { value: '1–4 weeks', sub: 'A few weeks' },
+  { value: '1–3 months', sub: 'Several months' },
+  { value: '> 3 months', sub: 'Long-standing' },
 ];
+const ORAL_RISKS = ['Tobacco / cigarettes', 'Alcohol use', 'Betel nut / paan', 'Poor dental hygiene', 'HPV history', 'Family history of cancer'];
+const SKIN_RISKS = ['Heavy sun exposure', 'History of severe sunburns', 'Fair / light skin', 'Family history of skin cancer', 'Previous skin cancer', 'Immunosuppression'];
 
-const ORAL_RISKS = [
-  'Tobacco / cigarettes', 'Alcohol use', 'Betel nut / paan',
-  'Poor dental hygiene', 'HPV history', 'Family history of cancer',
-];
+const chip = (active: boolean, danger = false): React.CSSProperties => ({
+  padding: '6px 14px',
+  borderRadius: '999px',
+  fontSize: '13px',
+  fontWeight: 600,
+  border: `2px solid ${active ? (danger ? 'var(--warn)' : 'var(--brand)') : 'var(--line)'}`,
+  background: active ? (danger ? 'var(--warn-soft)' : 'var(--brand-soft)') : 'var(--surface)',
+  color: active ? (danger ? '#8a6b00' : 'var(--brand-dark)') : 'var(--ink-soft)',
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+  transition: 'all 0.12s',
+});
 
-const SKIN_RISKS = [
-  'Heavy sun exposure', 'History of severe sunburns', 'Fair / light skin',
-  'Family history of skin cancer', 'Previous skin cancer', 'Immunosuppression',
-];
-
-const PAIN_LABELS: Record<number, { label: string; color: string }> = {
-  0: { label: 'None', color: 'text-success' },
-  1: { label: 'Minimal', color: 'text-success' },
-  2: { label: 'Mild', color: 'text-success' },
-  3: { label: 'Mild', color: 'text-success' },
-  4: { label: 'Moderate', color: 'text-warning' },
-  5: { label: 'Moderate', color: 'text-warning' },
-  6: { label: 'Moderate', color: 'text-warning' },
-  7: { label: 'Severe', color: 'text-danger' },
-  8: { label: 'Severe', color: 'text-danger' },
-  9: { label: 'Very Severe', color: 'text-danger' },
-  10: { label: 'Unbearable', color: 'text-danger' },
-};
-
-export default function SymptomQuestionnaire({ scanType, onChange }: Props) {
+export default function SymptomQuestionnaire({ scanType, onChange, onComplete }: Props) {
+  const T = useT();
   const [step, setStep] = useState(1);
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [duration, setDuration] = useState('');
@@ -73,44 +64,39 @@ export default function SymptomQuestionnaire({ scanType, onChange }: Props) {
   const [additionalNotes, setAdditionalNotes] = useState('');
   const [loadingFollowup, setLoadingFollowup] = useState(false);
   const [followupError, setFollowupError] = useState(false);
+  const [showValidation, setShowValidation] = useState(false);
 
   const symptoms = scanType === 'skin' ? SKIN_SYMPTOMS : ORAL_SYMPTOMS;
   const risks = scanType === 'skin' ? SKIN_RISKS : ORAL_RISKS;
-  const painInfo = PAIN_LABELS[painLevel];
 
-  const toggleSymptom = (s: string) =>
-    setSelectedSymptoms((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]);
-
-  const toggleRisk = (r: string) =>
-    setRiskFactors((prev) => prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]);
+  const toggle = <T2,>(arr: T2[], val: T2): T2[] =>
+    arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val];
 
   const notifyParent = useCallback(() => {
-    onChange({
-      selected_symptoms: selectedSymptoms,
-      duration,
-      pain_level: painLevel,
-      risk_factors: riskFactors,
-      followup_answers: followupAnswers,
-      additional_notes: additionalNotes,
-    });
+    onChange({ selected_symptoms: selectedSymptoms, duration, pain_level: painLevel, risk_factors: riskFactors, followup_answers: followupAnswers, additional_notes: additionalNotes });
   }, [selectedSymptoms, duration, painLevel, riskFactors, followupAnswers, additionalNotes, onChange]);
 
   useEffect(() => { notifyParent(); }, [notifyParent]);
+
+  // Check completeness: step 3 reached + all followup questions answered
+  useEffect(() => {
+    if (step < 3 || followupQuestions.length === 0) {
+      onComplete(false);
+      return;
+    }
+    const allAnswered = followupQuestions.every((_, i) => (followupAnswers[`q${i}`] ?? '').trim() !== '');
+    onComplete(allAnswered);
+  }, [step, followupQuestions, followupAnswers, onComplete]);
 
   const fetchFollowup = async () => {
     setLoadingFollowup(true);
     setFollowupError(false);
     try {
-      const res = await fetch('http://localhost:8000/api/v1/symptoms/followup', {
+      const BACKEND_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000') + '/api/v1';
+      const res = await fetch(`${BACKEND_URL}/symptoms/followup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          scan_type: scanType,
-          selected_symptoms: selectedSymptoms,
-          duration,
-          pain_level: painLevel,
-          risk_factors: riskFactors,
-        }),
+        body: JSON.stringify({ scan_type: scanType, selected_symptoms: selectedSymptoms, duration, pain_level: painLevel, risk_factors: riskFactors }),
       });
       const data = await res.json();
       setFollowupQuestions(data.questions ?? []);
@@ -119,283 +105,213 @@ export default function SymptomQuestionnaire({ scanType, onChange }: Props) {
       setFollowupQuestions([
         'Have you seen a doctor about these symptoms before?',
         'Are these symptoms getting worse, better, or staying the same?',
+        'Do you have a family history of cancer?',
       ]);
     } finally {
       setLoadingFollowup(false);
     }
   };
 
-  const goToStep3 = async () => {
+  const goStep3 = async () => {
     setStep(3);
     if (followupQuestions.length === 0) await fetchFollowup();
   };
 
-  const totalSelected = selectedSymptoms.length + riskFactors.length + (duration ? 1 : 0);
+  const allFollowupAnswered = followupQuestions.length > 0 &&
+    followupQuestions.every((_, i) => (followupAnswers[`q${i}`] ?? '').trim() !== '');
+
+  const stepStyle = (s: number): React.CSSProperties => ({
+    flex: 1, height: '6px', borderRadius: '3px',
+    background: step >= s ? 'var(--brand)' : 'var(--line)',
+    transition: 'background 0.3s',
+  });
 
   return (
-    <div className="space-y-4">
-      {/* Progress bar */}
-      <div className="flex items-center gap-2 mb-1">
-        {[1, 2, 3].map((s) => (
-          <div key={s} className="flex-1 flex flex-col items-center gap-1">
-            <div
-              className={`h-1.5 w-full rounded-full transition-all duration-500 ${
-                step > s ? 'bg-accent' : step === s ? 'bg-accent/60' : 'bg-border'
-              }`}
-            />
-          </div>
-        ))}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Step bar */}
+      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+        <div style={stepStyle(1)} />
+        <div style={stepStyle(2)} />
+        <div style={stepStyle(3)} />
       </div>
-      <div className="flex justify-between text-xs text-muted mb-3">
-        <span className={step === 1 ? 'text-accent font-medium' : ''}>Symptoms</span>
-        <span className={step === 2 ? 'text-accent font-medium' : ''}>Details</span>
-        <span className={step === 3 ? 'text-accent font-medium' : ''}>AI Questions</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--ink-soft)', fontWeight: 700 }}>
+        <span style={{ color: step === 1 ? 'var(--brand)' : undefined }}>{T.sym_step_symptoms}</span>
+        <span style={{ color: step === 2 ? 'var(--brand)' : undefined }}>{T.sym_step_details}</span>
+        <span style={{ color: step === 3 ? 'var(--brand)' : undefined }}>{T.sym_step_ai}</span>
       </div>
 
-      {/* ── STEP 1: Symptom chips ── */}
+      {/* Step 1: Symptom chips */}
       {step === 1 && (
-        <div className="space-y-4">
-          <div>
-            <p className="text-sm font-medium text-white mb-0.5">Which symptoms are you experiencing?</p>
-            <p className="text-xs text-muted mb-3">Tap all that apply — or skip if unsure</p>
-            <div className="flex flex-wrap gap-2">
-              {symptoms.map((s) => {
-                const active = selectedSymptoms.includes(s);
-                return (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => toggleSymptom(s)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 ${
-                      active
-                        ? 'bg-accent/20 border-accent text-accent shadow-sm shadow-accent/20'
-                        : 'bg-background-secondary border-border text-muted hover:border-border-light hover:text-white'
-                    }`}
-                  >
-                    {active && <span className="mr-1">✓</span>}
-                    {s}
-                  </button>
-                );
-              })}
-            </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <p style={{ fontWeight: 700, marginBottom: '2px' }}>{T.sym_which}</p>
+          <p style={{ fontSize: '13px', color: 'var(--ink-soft)', marginTop: '-8px' }}>{T.sym_which_sub}</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {symptoms.map((s) => (
+              <button key={s} type="button" style={chip(selectedSymptoms.includes(s))}
+                onClick={() => setSelectedSymptoms(toggle(selectedSymptoms, s))}>
+                {selectedSymptoms.includes(s) && '✓ '}{s}
+              </button>
+            ))}
           </div>
-
           {selectedSymptoms.length > 0 && (
-            <div className="flex items-center gap-2 text-xs text-accent bg-accent/5 border border-accent/20 rounded-lg px-3 py-2">
-              <span className="font-semibold">{selectedSymptoms.length}</span> symptom{selectedSymptoms.length !== 1 ? 's' : ''} selected
+            <div style={{ fontSize: '13px', color: 'var(--brand)', fontWeight: 700 }}>
+              {T.sym_selected(selectedSymptoms.length)}
             </div>
           )}
-
-          <button
-            type="button"
-            onClick={() => setStep(2)}
-            className="w-full flex items-center justify-center gap-2 bg-accent/10 hover:bg-accent/20 border border-accent/30 text-accent rounded-xl py-2.5 text-sm font-medium transition-all"
-          >
-            {selectedSymptoms.length === 0 ? 'Skip / No symptoms' : 'Next'}
-            <ChevronRight className="h-4 w-4" />
+          <button type="button" className="btn outline" onClick={() => setStep(2)}>
+            {selectedSymptoms.length === 0 ? T.sym_skip : T.sym_next}
           </button>
         </div>
       )}
 
-      {/* ── STEP 2: Duration, Pain, Risk Factors ── */}
+      {/* Step 2: Duration, Pain, Risk */}
       {step === 2 && (
-        <div className="space-y-5">
-          {/* Duration */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div>
-            <p className="text-sm font-medium text-white mb-2">How long have you had this?</p>
-            <div className="grid grid-cols-2 gap-2">
+            <p style={{ fontWeight: 700, marginBottom: '10px' }}>{T.sym_how_long}</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               {DURATIONS.map((d) => (
-                <button
-                  key={d.value}
-                  type="button"
-                  onClick={() => setDuration(d.value)}
-                  className={`p-3 rounded-xl border text-left transition-all duration-200 ${
-                    duration === d.value
-                      ? 'border-accent bg-accent/10'
-                      : 'border-border bg-background-secondary hover:border-border-light'
-                  }`}
-                >
-                  <div className={`text-sm font-semibold ${duration === d.value ? 'text-accent' : 'text-white'}`}>{d.label}</div>
-                  <div className="text-xs text-muted mt-0.5">{d.sub}</div>
+                <button key={d.value} type="button" onClick={() => setDuration(d.value)}
+                  style={{ border: `2px solid ${duration === d.value ? 'var(--brand)' : 'var(--line)'}`, background: duration === d.value ? 'var(--brand-soft)' : 'var(--surface)', borderRadius: '14px', padding: '12px', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s' }}>
+                  <div style={{ fontWeight: 700, fontSize: '14px', color: duration === d.value ? 'var(--brand-dark)' : 'var(--ink)' }}>{d.value}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--ink-soft)' }}>{d.sub}</div>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Pain slider */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-white">Pain / discomfort level</p>
-              <span className={`text-sm font-bold ${painInfo.color}`}>
-                {painLevel}/10 — {painInfo.label}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <p style={{ fontWeight: 700 }}>{T.sym_pain}</p>
+              <span style={{ fontWeight: 800, color: painLevel >= 7 ? 'var(--danger)' : painLevel >= 4 ? 'var(--warn)' : 'var(--brand)' }}>
+                {painLevel}/10
               </span>
             </div>
-            <div className="relative">
-              <input
-                type="range"
-                min={0}
-                max={10}
-                value={painLevel}
-                onChange={(e) => setPainLevel(Number(e.target.value))}
-                className="w-full h-2 rounded-full appearance-none cursor-pointer accent-accent"
-                style={{
-                  background: `linear-gradient(to right, #3B82F6 ${painLevel * 10}%, #1F2937 ${painLevel * 10}%)`,
-                }}
-              />
-              <div className="flex justify-between text-xs text-muted mt-1">
-                <span>0 — None</span>
-                <span>5 — Moderate</span>
-                <span>10 — Severe</span>
-              </div>
+            <input type="range" min={0} max={10} value={painLevel} onChange={(e) => setPainLevel(Number(e.target.value))}
+              style={{ width: '100%', accentColor: 'var(--brand)', cursor: 'pointer' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--ink-soft)', marginTop: '4px' }}>
+              <span>None</span><span>Moderate</span><span>Severe</span>
             </div>
           </div>
 
-          {/* Risk factors */}
           <div>
-            <p className="text-sm font-medium text-white mb-0.5">Known risk factors</p>
-            <p className="text-xs text-muted mb-2">Select all that apply to you</p>
-            <div className="flex flex-wrap gap-2">
-              {risks.map((r) => {
-                const active = riskFactors.includes(r);
-                return (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => toggleRisk(r)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 ${
-                      active
-                        ? 'bg-warning/20 border-warning/60 text-warning'
-                        : 'bg-background-secondary border-border text-muted hover:border-border-light hover:text-white'
-                    }`}
-                  >
-                    {active && <span className="mr-1">✓</span>}
-                    {r}
-                  </button>
-                );
-              })}
+            <p style={{ fontWeight: 700, marginBottom: '8px' }}>{T.sym_risks}</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {risks.map((r) => (
+                <button key={r} type="button" style={chip(riskFactors.includes(r), true)}
+                  onClick={() => setRiskFactors(toggle(riskFactors, r))}>
+                  {riskFactors.includes(r) && '✓ '}{r}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="flex gap-2 pt-1">
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              className="flex items-center gap-1 px-4 py-2.5 rounded-xl border border-border text-muted hover:text-white text-sm transition-all"
-            >
-              <ChevronLeft className="h-4 w-4" /> Back
-            </button>
-            <button
-              type="button"
-              onClick={goToStep3}
-              className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-accent/20 to-purple-500/10 hover:from-accent/30 hover:to-purple-500/20 border border-accent/30 text-accent rounded-xl py-2.5 text-sm font-medium transition-all"
-            >
-              <Sparkles className="h-4 w-4" />
-              Get AI Follow-up Questions
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button type="button" className="btn ghost" style={{ border: '2px solid var(--line)' }} onClick={() => setStep(1)}>{T.sym_back}</button>
+            <button type="button" className="btn accent-btn" style={{ flex: 1 }} onClick={goStep3}>
+              {T.sym_get_ai}
             </button>
           </div>
         </div>
       )}
 
-      {/* ── STEP 3: Gemini follow-up ── */}
+      {/* Step 3: Gemini follow-up (mandatory) */}
       {step === 3 && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-accent/20 flex items-center justify-center shrink-0">
-              <Sparkles className="h-4 w-4 text-accent" />
-            </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--accent-soft)', borderRadius: '14px', padding: '12px 16px' }}>
+            <span style={{ fontSize: '20px' }}>✨</span>
             <div>
-              <p className="text-sm font-medium text-white">Gemini AI Follow-up</p>
-              <p className="text-xs text-muted">Personalised questions based on your symptom profile</p>
+              <p style={{ fontWeight: 700, fontSize: '14px', color: 'var(--accent)' }}>{T.sym_ai_title}</p>
+              <p style={{ fontSize: '12px', color: 'var(--ink-soft)' }}>{T.sym_ai_sub}</p>
             </div>
+            {allFollowupAnswered && (
+              <span style={{ marginLeft: 'auto', background: 'var(--brand)', color: '#fff', borderRadius: '999px', padding: '3px 10px', fontSize: '11px', fontWeight: 700 }}>
+                {T.sym_complete_badge}
+              </span>
+            )}
           </div>
 
           {followupError && (
-            <div className="flex items-center gap-2 text-xs text-warning bg-warning/5 border border-warning/20 rounded-lg px-3 py-2">
-              <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-              Backend offline — showing default questions
+            <div style={{ background: 'var(--warn-soft)', border: '1px solid var(--warn)', borderRadius: '10px', padding: '10px 14px', fontSize: '13px', color: '#8a6b00' }}>
+              {T.sym_offline_warn}
             </div>
           )}
 
           {loadingFollowup ? (
-            <div className="flex flex-col items-center gap-3 py-8">
-              <Loader2 className="h-6 w-6 text-accent animate-spin" />
-              <p className="text-sm text-muted">Gemini is analysing your symptom profile...</p>
-              <div className="flex gap-1 mt-1">
-                {['Parsing symptoms', 'Assessing risk', 'Generating questions'].map((t, i) => (
-                  <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-accent/10 text-accent/60 border border-accent/10"
-                    style={{ animationDelay: `${i * 0.3}s` }}>
-                    {t}
-                  </span>
-                ))}
-              </div>
+            <div style={{ textAlign: 'center', padding: '32px', color: 'var(--ink-soft)' }}>
+              <div style={{ fontSize: '24px', marginBottom: '8px' }}>✨</div>
+              <p style={{ fontWeight: 600 }}>{T.sym_ai_loading}</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {followupQuestions.map((q, i) => (
-                <div key={i} className="bg-background-secondary rounded-xl p-3 border border-border">
-                  <label className="text-xs font-medium text-accent/80 block mb-1.5">
-                    Q{i + 1}: {q}
-                  </label>
-                  <input
-                    value={followupAnswers[`q${i}`] ?? ''}
-                    onChange={(e) => setFollowupAnswers((prev) => ({ ...prev, [`q${i}`]: e.target.value }))}
-                    className="w-full bg-background-card border border-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-muted focus:outline-none focus:border-accent transition-colors"
-                    placeholder="Type your answer..."
-                  />
-                </div>
-              ))}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {followupQuestions.map((q, i) => {
+                const answered = (followupAnswers[`q${i}`] ?? '').trim() !== '';
+                return (
+                  <div key={i} style={{ background: 'var(--bg)', borderRadius: '14px', padding: '14px', border: `1.5px solid ${showValidation && !answered ? 'var(--danger)' : answered ? 'var(--brand)' : 'var(--line)'}` }}>
+                    <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                      Q{i + 1}: {q}
+                      {answered && <span style={{ color: 'var(--brand)', fontSize: '14px' }}>✓</span>}
+                      {showValidation && !answered && <span style={{ color: 'var(--danger)', fontSize: '11px', fontWeight: 600 }}>Required</span>}
+                    </label>
+                    <input
+                      value={followupAnswers[`q${i}`] ?? ''}
+                      placeholder={T.sym_answer_placeholder}
+                      onChange={(e) => {
+                        setFollowupAnswers((prev) => ({ ...prev, [`q${i}`]: e.target.value }));
+                        setShowValidation(false);
+                      }}
+                      style={{ width: '100%', border: `1.5px solid ${showValidation && !answered ? 'var(--danger)' : 'var(--line)'}`, borderRadius: '10px', padding: '10px 12px', fontSize: '14px', fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--ink)', outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                );
+              })}
 
-              <div className="bg-background-secondary rounded-xl p-3 border border-border">
-                <label className="text-xs font-medium text-muted block mb-1.5">
-                  Anything else you&apos;d like the doctor to know?
+              <div style={{ background: 'var(--bg)', borderRadius: '14px', padding: '14px', border: '1px solid var(--line)' }}>
+                <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink-soft)', display: 'block', marginBottom: '8px' }}>
+                  {T.sym_extra}
                 </label>
-                <textarea
-                  value={additionalNotes}
-                  onChange={(e) => setAdditionalNotes(e.target.value)}
-                  rows={2}
-                  className="w-full bg-background-card border border-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-muted focus:outline-none focus:border-accent transition-colors resize-none"
-                  placeholder="Any additional context..."
-                />
+                <textarea value={additionalNotes} onChange={(e) => setAdditionalNotes(e.target.value)} rows={2} placeholder={T.sym_extra_placeholder}
+                  style={{ width: '100%', border: '1.5px solid var(--line)', borderRadius: '10px', padding: '10px 12px', fontSize: '14px', fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--ink)', outline: 'none', resize: 'none', boxSizing: 'border-box' }} />
+              </div>
+
+              {/* Mandatory notice */}
+              {!allFollowupAnswered && (
+                <div style={{ background: 'var(--warn-soft)', borderRadius: '10px', padding: '10px 14px', fontSize: '13px', color: '#8a6b00', border: '1px solid var(--warn)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>⚠</span>
+                  <span>{T.sym_complete_required}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Summary chips */}
+          {selectedSymptoms.length + riskFactors.length > 0 && (
+            <div style={{ background: 'var(--brand-soft)', borderRadius: '14px', padding: '12px 14px', border: '1px solid var(--line)' }}>
+              <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>{T.sym_profile}</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {selectedSymptoms.map((s) => <span key={s} style={chip(true) as React.CSSProperties}>{s}</span>)}
+                {duration && <span style={chip(true) as React.CSSProperties}>{duration}</span>}
+                {painLevel > 0 && <span style={chip(true, painLevel >= 7) as React.CSSProperties}>Pain {painLevel}/10</span>}
+                {riskFactors.map((r) => <span key={r} style={chip(true, true) as React.CSSProperties}>{r}</span>)}
               </div>
             </div>
           )}
 
-          {/* Symptom summary */}
-          {!loadingFollowup && totalSelected > 0 && (
-            <div className="bg-background-secondary rounded-xl p-3 border border-border/60">
-              <p className="text-xs text-muted mb-2 font-medium uppercase tracking-wide">Your profile summary</p>
-              <div className="flex flex-wrap gap-1.5">
-                {selectedSymptoms.map((s) => (
-                  <span key={s} className="text-xs px-2 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/20">
-                    {s}
-                  </span>
-                ))}
-                {duration && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-border text-white border border-border-light">
-                    {duration}
-                  </span>
-                )}
-                {painLevel > 0 && (
-                  <span className={`text-xs px-2 py-0.5 rounded-full border ${painLevel >= 7 ? 'bg-danger/10 text-danger border-danger/20' : 'bg-warning/10 text-warning border-warning/20'}`}>
-                    Pain {painLevel}/10
-                  </span>
-                )}
-                {riskFactors.map((r) => (
-                  <span key={r} className="text-xs px-2 py-0.5 rounded-full bg-warning/10 text-warning border border-warning/20">
-                    {r}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setStep(2)}
-            className="flex items-center gap-1 px-4 py-2 rounded-xl border border-border text-muted hover:text-white text-sm transition-all"
-          >
-            <ChevronLeft className="h-4 w-4" /> Back
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button type="button" className="btn ghost" style={{ border: '2px solid var(--line)' }} onClick={() => setStep(2)}>
+              {T.sym_back}
+            </button>
+            {!allFollowupAnswered && (
+              <button
+                type="button"
+                className="btn outline"
+                style={{ flex: 1, fontSize: '13px' }}
+                onClick={() => setShowValidation(true)}
+              >
+                Check answers ↑
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

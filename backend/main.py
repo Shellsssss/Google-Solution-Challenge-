@@ -27,12 +27,17 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # ── CORS ───────────────────────────────────────────────────────────────────────
+import os as _os
+
+_extra_origins = [o.strip() for o in _os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "*",
         "http://localhost:3000",
         "https://janarogya.health",
+        "https://*.vercel.app",
+        *_extra_origins,
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -47,10 +52,30 @@ _startup_time: float = time.time()
 async def on_startup():
     global _startup_time
     _startup_time = time.time()
-    # Share startup time with admin router
     from routers.admin import set_startup_time
     set_startup_time(_startup_time)
     logger.info("JanArogya API started at %.2f", _startup_time)
+    _validate_env()
+
+
+def _validate_env():
+    import os
+    issues = []
+    gemini = os.getenv("GEMINI_API_KEY", "")
+    if not gemini:
+        issues.append("GEMINI_API_KEY is not set — Gemini analysis will fail")
+    maps = os.getenv("GOOGLE_MAPS_API_KEY", "")
+    if not maps:
+        issues.append("GOOGLE_MAPS_API_KEY is not set — nearest centres disabled")
+    elif len(maps) < 39:
+        issues.append(
+            f"GOOGLE_MAPS_API_KEY looks truncated ({len(maps)} chars, expected 39) "
+            "— nearest centres will fail. Get a fresh key from Google Cloud Console."
+        )
+    for issue in issues:
+        logger.warning("ENV CHECK: %s", issue)
+    if not issues:
+        logger.info("ENV CHECK: all required keys present")
 
 
 # ── Request logging middleware ─────────────────────────────────────────────────
