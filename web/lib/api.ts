@@ -20,6 +20,7 @@ import type {
   Language,
   ScanType,
   User,
+  CommunityZone,
 } from '@/types';
 
 export const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000') + '/api/v1';
@@ -142,12 +143,22 @@ export async function analyzeBase64(
   image_base64: string,
   scan_type: ScanType,
   symptoms?: Record<string, string>,
-  language: Language = 'en'
+  language: Language = 'en',
+  meta?: { latitude?: number; longitude?: number; age_group?: string; tobacco_habit?: string }
 ): Promise<AnalysisResult> {
   const res = await fetch(`${API_BASE}/analyze`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ image_base64, scan_type, symptoms: symptoms ?? null, language }),
+    body: JSON.stringify({
+      image_base64,
+      scan_type,
+      symptoms: symptoms ?? null,
+      language,
+      latitude: meta?.latitude ?? null,
+      longitude: meta?.longitude ?? null,
+      age_group: meta?.age_group ?? null,
+      tobacco_habit: meta?.tobacco_habit ?? null,
+    }),
   });
   return handleResponse<AnalysisResult>(res);
 }
@@ -296,6 +307,26 @@ export async function chat(
     body: JSON.stringify({ message, history, language }),
   });
   return handleResponse<{ response: string }>(res);
+}
+
+// ─── Community / Volunteer ───────────────────────────────
+export async function getCommunityData(): Promise<CommunityZone[]> {
+  const res = await fetch(`${API_BASE}/community/data`);
+  return handleResponse<CommunityZone[]>(res);
+}
+
+export async function getCommunityHeatmap(): Promise<HeatmapPoint[]> {
+  const res = await fetch(`${API_BASE}/community/heatmap`);
+  return handleResponse<HeatmapPoint[]>(res);
+}
+
+export async function markZoneHandled(city: string, volunteer_name: string): Promise<{ success: boolean }> {
+  const res = await fetch(`${API_BASE}/community/zone/${encodeURIComponent(city)}/handle`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ volunteer_name, action: 'handled' }),
+  });
+  return handleResponse<{ success: boolean }>(res);
 }
 
 // ─── Health ──────────────────────────────────────────────

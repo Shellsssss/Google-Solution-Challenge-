@@ -38,6 +38,7 @@ export default function Navbar() {
         <div className="top-links" style={{ display: 'none' }} id="desk-nav">
           <Link href="/#how-it-works" className="top-link">{T.nav_how}</Link>
           <Link href="/scan" className="top-link">{T.nav_scan}</Link>
+          <Link href="/community" className="top-link">Community</Link>
           <Link href="/about" className="top-link">{T.nav_about}</Link>
         </div>
 

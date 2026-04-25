@@ -228,6 +228,24 @@ export interface AnalyticsGeography {
   high_risk_count: number;
 }
 
+// ─── Community / Volunteer ──────────────────────────────
+export interface CommunityZone {
+  city: string;
+  state: string;
+  lat: number;
+  lng: number;
+  total: number;
+  high_risk: number;
+  oral: number;
+  skin: number;
+  high_risk_pct: number;
+  risk_zone: 'HIGH' | 'MEDIUM' | 'LOW';
+  needs_screening_camp: boolean;
+  handled: boolean;
+  handled_by: string;
+  handled_at: string;
+}
+
 // ─── API Error ──────────────────────────────────────────
 export interface ApiError {
   detail?: string;

@@ -113,9 +113,17 @@ export default function DashboardPage() {
 
             {activeTab === 'analytics' && (
               <div className="panel" style={{ textAlign: 'center', padding: '60px' }}>
-                <div style={{ fontSize: '48px', marginBottom: '12px' }}>📈</div>
-                <h3>Advanced Analytics</h3>
-                <p style={{ color: 'var(--ink-soft)' }}>Geographic heatmap and model performance metrics coming soon.</p>
+                <div style={{ fontSize: '48px', marginBottom: '12px' }}>🗺</div>
+                <h3>Community Risk Map</h3>
+                <p style={{ color: 'var(--ink-soft)', marginBottom: '20px' }}>
+                  View the live geographic heatmap, area-level risk statistics, and volunteer coordination tools.
+                </p>
+                <a href="/community">
+                  <button className="btn" style={{ marginRight: '12px' }}>View Risk Heatmap</button>
+                </a>
+                <a href="/volunteer">
+                  <button className="btn ghost">Volunteer Dashboard</button>
+                </a>
               </div>
             )}
 
