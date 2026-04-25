@@ -283,6 +283,67 @@ def get_dashboard_stats() -> dict:
     }
 
 
+def get_community_data() -> list[dict]:
+    """Return city-level community health insights with resource suggestion flags."""
+    active = [s for s in _scans if not s.get("deleted") and s.get("city") and s["city"] not in ("", "Unknown")]
+    city_agg: dict[str, dict] = {}
+
+    for s in active:
+        city = s.get("city", "Unknown")
+        state = s.get("state", "")
+        if city not in city_agg:
+            city_agg[city] = {
+                "city": city,
+                "state": state,
+                "lat": s.get("lat", 0),
+                "lng": s.get("lng", 0),
+                "total": 0,
+                "high_risk": 0,
+                "oral": 0,
+                "skin": 0,
+                "handled": _handled_zones.get(city, False),
+                "handled_by": _handled_zones_meta.get(city, {}).get("volunteer", ""),
+                "handled_at": _handled_zones_meta.get(city, {}).get("at", ""),
+            }
+        city_agg[city]["total"] += 1
+        if s.get("risk_level") == "HIGH_RISK":
+            city_agg[city]["high_risk"] += 1
+        st = s.get("scan_type", "other")
+        if st in ("oral", "skin"):
+            city_agg[city][st] += 1
+
+    result = []
+    for city, d in city_agg.items():
+        total = d["total"]
+        risk_pct = d["high_risk"] / total if total else 0
+        risk_zone = "HIGH" if risk_pct > 0.4 else ("MEDIUM" if risk_pct > 0.2 else "LOW")
+        needs_camp = risk_pct > 0.4 and total >= 5
+        result.append({
+            **d,
+            "high_risk_pct": round(risk_pct * 100, 1),
+            "risk_zone": risk_zone,
+            "needs_screening_camp": needs_camp,
+        })
+
+    return sorted(result, key=lambda x: x["high_risk_pct"], reverse=True)
+
+
+# ── Volunteer zone tracking ───────────────────────────────────────────────────
+_handled_zones: dict[str, bool] = {}
+_handled_zones_meta: dict[str, dict] = {}
+
+
+def mark_zone_handled(city: str, volunteer_name: str = "") -> bool:
+    """Mark a city zone as handled by a volunteer. Returns True."""
+    from datetime import datetime, timezone
+    _handled_zones[city] = True
+    _handled_zones_meta[city] = {
+        "volunteer": volunteer_name,
+        "at": datetime.now(timezone.utc).isoformat(),
+    }
+    return True
+
+
 def get_heatmap_data() -> list[dict]:
     """Return aggregated lat/lng clusters for heatmap rendering."""
     active = [s for s in _scans if not s.get("deleted") and s.get("lat") and s.get("lng")]

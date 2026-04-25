@@ -13,6 +13,8 @@ from services.gemini_service import (
     check_image_quality,
 )
 from services.ml_service import run_inference, get_all_probabilities
+from services.scan_store import save_scan
+from services.geo_service import reverse_geocode
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -30,6 +32,9 @@ class AnalyzeRequest(BaseModel):
     symptoms: Optional[dict] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    age_group: Optional[str] = None      # "under_18" | "18-40" | "40-60" | "60+"
+    tobacco_habit: Optional[str] = None  # "none" | "smoking" | "chewing" | "both"
+    language: str = "en"
     skip_quality_check: bool = False   # set true in testing/demo
 
 
@@ -123,6 +128,30 @@ async def analyze(req: AnalyzeRequest):
             nearest_centers = await find_nearest_cancer_center(req.latitude, req.longitude)
         except Exception as exc:
             logger.warning("Maps lookup failed: %s", exc)
+
+    # ── 6. Reverse-geocode + persist scan ─────────────────────────────────────
+    city, state = "", ""
+    if req.latitude and req.longitude:
+        try:
+            city, state = await reverse_geocode(req.latitude, req.longitude)
+        except Exception:
+            pass
+
+    save_scan({
+        "scan_type": scan_type,
+        "risk_level": risk_level,
+        "confidence": round(confidence, 4),
+        "language": req.language,
+        "symptoms": req.symptoms or {},
+        "lat": req.latitude,
+        "lng": req.longitude,
+        "city": city,
+        "state": state,
+        "age_group": req.age_group or "",
+        "tobacco_habit": req.tobacco_habit or "",
+        "explanation_en": explanation_dict.get("en", ""),
+        "concern": explanation.get("concern", ""),
+    })
 
     return {
         "risk_level": risk_level,

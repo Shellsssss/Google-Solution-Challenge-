@@ -40,6 +40,10 @@ export default function ScanPage() {
   const [symptomsComplete, setSymptomsComplete] = useState(false);
   const [showSymptomsWarning, setShowSymptomsWarning] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [ageGroup, setAgeGroup] = useState('');
+  const [tobaccoHabit, setTobaccoHabit] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -70,6 +74,16 @@ export default function ScanPage() {
     return parts;
   };
 
+  const captureGPS = () => {
+    if (!navigator.geolocation) return;
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setGpsCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setGpsLoading(false); },
+      () => setGpsLoading(false),
+      { timeout: 8000 }
+    );
+  };
+
   const handleAnalyze = async () => {
     if (!file) return;
     if (!symptomsComplete) {
@@ -81,7 +95,13 @@ export default function ScanPage() {
     setLoading(true); setError(null);
     try {
       const base64 = await fileToBase64(file);
-      const res = await analyzeBase64(base64, scanType, buildSymptomsPayload(), language);
+      const meta = {
+        latitude: gpsCoords?.lat,
+        longitude: gpsCoords?.lng,
+        age_group: ageGroup || undefined,
+        tobacco_habit: tobaccoHabit || undefined,
+      };
+      const res = await analyzeBase64(base64, scanType, buildSymptomsPayload(), language, meta);
       setResult(res);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Analysis failed';
@@ -97,6 +117,7 @@ export default function ScanPage() {
     setFile(null); setPreview(null); setResult(null); setError(null);
     setSymptoms(defaultSymptoms); setShowSymptoms(true);
     setSymptomsComplete(false); setShowSymptomsWarning(false);
+    setGpsCoords(null); setAgeGroup(''); setTobaccoHabit('');
   };
 
   const symptomsCount = symptoms.selected_symptoms.length + symptoms.risk_factors.length +
@@ -217,8 +238,64 @@ export default function ScanPage() {
             )}
           </div>
 
-          {/* Step 4: Language */}
-          <p className="scan-label" style={{ marginTop: '24px' }}>4. {T.scan_step4.replace('4. ', '')}</p>
+          {/* Step 4: Optional metadata */}
+          <div style={{ marginTop: '24px', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: '16px', padding: '16px 20px' }}>
+            <p style={{ fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--ink)', marginBottom: '12px' }}>
+              4. Health Context <span style={{ fontWeight: 400, fontSize: '11px', color: 'var(--ink-soft)' }}>(optional — improves accuracy)</span>
+            </p>
+
+            {/* GPS */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={captureGPS}
+                disabled={gpsLoading}
+                style={{
+                  border: `1.5px solid ${gpsCoords ? 'var(--brand)' : 'var(--line)'}`,
+                  background: gpsCoords ? 'var(--brand-soft)' : 'var(--bg)',
+                  color: gpsCoords ? 'var(--brand)' : 'var(--ink-soft)',
+                  borderRadius: '999px', padding: '6px 14px', fontSize: '13px', fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '6px',
+                }}
+              >
+                {gpsLoading ? '⏳' : '📍'} {gpsCoords ? `${gpsCoords.lat.toFixed(3)}, ${gpsCoords.lng.toFixed(3)}` : 'Add Location'}
+              </button>
+              {gpsCoords && (
+                <button type="button" onClick={() => setGpsCoords(null)}
+                  style={{ background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: '12px', cursor: 'pointer' }}>
+                  ✕ remove
+                </button>
+              )}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--ink-soft)', display: 'block', marginBottom: '4px' }}>Age Group</label>
+                <select value={ageGroup} onChange={(e) => setAgeGroup(e.target.value)}
+                  style={{ width: '100%', padding: '7px 10px', borderRadius: '8px', border: '1.5px solid var(--line)', background: 'var(--bg)', color: 'var(--ink)', fontSize: '13px', fontFamily: 'inherit' }}>
+                  <option value="">Select…</option>
+                  <option value="under_18">Under 18</option>
+                  <option value="18-40">18 – 40</option>
+                  <option value="40-60">40 – 60</option>
+                  <option value="60+">60+</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--ink-soft)', display: 'block', marginBottom: '4px' }}>Tobacco Use</label>
+                <select value={tobaccoHabit} onChange={(e) => setTobaccoHabit(e.target.value)}
+                  style={{ width: '100%', padding: '7px 10px', borderRadius: '8px', border: '1.5px solid var(--line)', background: 'var(--bg)', color: 'var(--ink)', fontSize: '13px', fontFamily: 'inherit' }}>
+                  <option value="">Select…</option>
+                  <option value="none">None</option>
+                  <option value="smoking">Smoking</option>
+                  <option value="chewing">Chewing tobacco</option>
+                  <option value="both">Both</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Step 5: Language */}
+          <p className="scan-label" style={{ marginTop: '24px' }}>5. {T.scan_step4.replace('4. ', '')}</p>
           <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', flexWrap: 'wrap' }}>
             {LANGS.map((l) => (
               <button key={l.code} onClick={() => setLanguage(l.code)}

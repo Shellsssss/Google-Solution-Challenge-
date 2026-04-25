@@ -9,6 +9,7 @@ from slowapi.util import get_remote_address
 
 from routers import analyze, whatsapp, report, chat
 from routers import auth, dashboard, scan_mgmt, doctor, notify, centres, analytics, admin
+from routers import community
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -105,6 +106,7 @@ app.include_router(notify.router,    prefix="/api/v1")
 app.include_router(centres.router,   prefix="/api/v1")
 app.include_router(analytics.router, prefix="/api/v1")
 app.include_router(admin.router,     prefix="/api/v1")
+app.include_router(community.router, prefix="/api/v1")
 
 # ── Core routes ────────────────────────────────────────────────────────────────
 
