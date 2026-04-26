@@ -108,7 +108,7 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: 16),
 
           // Sign out
-          _SectionHeader(title: 'Account'),
+          const _SectionHeader(title: 'Account'),
           _InfoCard(
             icon: Icons.logout,
             iconColor: context.danger,
