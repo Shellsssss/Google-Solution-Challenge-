@@ -127,7 +127,14 @@ class _ClinicCard extends StatelessWidget {
           Text(clinic.meta, style: GoogleFonts.notoSans(fontSize: 13, color: JaColors.inkSoft)),
           const SizedBox(height: 12),
           Row(children: [
-            _SmallBtn(label: 'Directions', icon: Icons.directions, onTap: () {}),
+            _SmallBtn(label: 'Directions', icon: Icons.directions, onTap: () async {
+                final geo = Uri.parse('geo:0,0?q=${Uri.encodeComponent(clinic.name)}');
+                if (await canLaunchUrl(geo)) {
+                  await launchUrl(geo);
+                } else {
+                  await launchUrl(Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(clinic.name)}'), mode: LaunchMode.externalApplication);
+                }
+              }),
             const SizedBox(width: 8),
             _SmallBtn(
               label: 'Call',
