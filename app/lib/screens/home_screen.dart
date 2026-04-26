@@ -355,28 +355,6 @@ class _StepRow extends StatelessWidget {
   }
 }
 
-// ── Quote band ────────────────────────────────────────────────────────────────
-class _QuoteBand extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      color: JaColors.brand,
-      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 48),
-      child: Column(children: [
-        Text(
-          '"I saw my uncle use this in the village fair. The app told him to visit the hospital. The doctor said he caught it early."',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.nunito(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white, height: 1.4),
-        ),
-        const SizedBox(height: 14),
-        Text('— A volunteer health worker, Satara district',
-            style: GoogleFonts.notoSans(fontSize: 14, color: Colors.white70, fontWeight: FontWeight.w500)),
-      ]),
-    );
-  }
-}
-
 // ── FAQ ───────────────────────────────────────────────────────────────────────
 class _FaqSection extends StatelessWidget {
   final String lang;
