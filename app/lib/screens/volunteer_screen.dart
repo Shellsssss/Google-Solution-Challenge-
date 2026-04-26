@@ -370,7 +370,10 @@ class _DashboardViewState extends State<_DashboardView> {
             actions: Row(children: [
               _ActionButton(label: 'Accept', color: JaColors.brand, loading: _actionTid == t.taskId, onTap: () => _accept(t.taskId)),
               const SizedBox(width: 8),
-              _ActionButton(label: 'Skip', color: JaColors.inkSoft, outline: true, loading: false, onTap: () {}),
+              _ActionButton(label: 'Skip', color: JaColors.inkSoft, outline: true, loading: false, onTap: () async {
+                await _api.declineTask(widget.vid, t.taskId);
+                _load();
+              }),
             ]),
           )),
 
