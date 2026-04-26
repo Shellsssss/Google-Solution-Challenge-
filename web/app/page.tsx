@@ -17,7 +17,6 @@ export default function Home() {
         <DualCtaSection />
         <HowItWorksSection />
         <ReassureSection />
-        <QuoteBandSection />
         <PhoneDemoSection />
         <FaqSection />
       </main>
