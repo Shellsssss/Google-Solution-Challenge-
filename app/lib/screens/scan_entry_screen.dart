@@ -9,6 +9,29 @@ import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 import 'patient_info_screen.dart';
 
+const _oralSymptoms = [
+  'White patches', 'Red patches', 'Non-healing mouth sore', 'Lump or thickening',
+  'Difficulty swallowing', 'Jaw or tongue pain', 'Bleeding gums', 'Ear pain',
+  'Loose teeth', 'Voice changes', 'Numbness', 'Persistent bad breath',
+];
+
+const _skinSymptoms = [
+  'New mole', 'Changing mole', 'Irregular border', 'Multiple colours',
+  'Bleeding spot', 'Itching or burning', 'Larger than 6mm', 'Non-healing sore',
+  'Shiny bump', 'Scaly patch', 'Dark streak under nail', 'Raised red patch',
+];
+
+const _oralRisks = [
+  'Tobacco use', 'Alcohol', 'Betel nut', 'Poor dental hygiene', 'HPV', 'Family history',
+];
+
+const _skinRisks = [
+  'Sun exposure', 'History of sunburns', 'Fair skin', 'Family history',
+  'Previous skin cancer', 'Immunosuppression',
+];
+
+const _durations = ['< 1 week', '1–4 weeks', '1–3 months', '> 3 months'];
+
 class ScanEntryScreen extends StatefulWidget {
   final String? initialType;
   const ScanEntryScreen({super.key, this.initialType});
@@ -18,12 +41,16 @@ class ScanEntryScreen extends StatefulWidget {
 }
 
 class _ScanEntryScreenState extends State<ScanEntryScreen> {
-  int _step = 0; // 0 = pick type, 1 = upload
+  int _step = 0; // 0=type, 1=upload, 2=symptoms, 3=risk factors
   late ScanType _scanType = widget.initialType == 'skin' ? ScanType.skin : ScanType.oral;
   bool _typePicked = false;
   Uint8List? _imageBytes;
   String? _fileName;
   bool _picking = false;
+
+  final Set<String> _selectedSymptoms = {};
+  final Set<String> _riskFactors = {};
+  String _duration = '';
 
   @override
   void initState() {
@@ -60,8 +87,18 @@ class _ScanEntryScreenState extends State<ScanEntryScreen> {
       );
       return;
     }
+    setState(() => _step = 2);
+  }
+
+  void _finish() {
     Navigator.push(context, MaterialPageRoute(
-      builder: (_) => PatientInfoScreen(imageBytes: _imageBytes!, scanType: _scanType),
+      builder: (_) => PatientInfoScreen(
+        imageBytes: _imageBytes!,
+        scanType: _scanType,
+        selectedSymptoms: _selectedSymptoms.toList(),
+        riskFactors: _riskFactors.toList(),
+        duration: _duration,
+      ),
     ));
   }
 
@@ -82,31 +119,57 @@ class _ScanEntryScreenState extends State<ScanEntryScreen> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 600),
             child: Column(children: [
-              // Progress dots
               _StepBar(step: _step),
               const SizedBox(height: 28),
-              // Step content
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 250),
-                child: _step == 0
-                    ? _StepPickType(
-                        key: const ValueKey(0),
-                        selected: _typePicked ? _scanType : null,
-                        onSelect: (t) => setState(() { _scanType = t; _typePicked = true; }),
-                        onNext: () => setState(() => _step = 1),
-                      )
-                    : _StepUpload(
-                        key: const ValueKey(1),
-                        scanType: _scanType,
-                        imageBytes: _imageBytes,
-                        fileName: _fileName,
-                        picking: _picking,
-                        onCamera: () => _pickImage(ImageSource.camera),
-                        onGallery: () => _pickImage(ImageSource.gallery),
-                        onClear: () => setState(() { _imageBytes = null; _fileName = null; }),
-                        onBack: () => setState(() => _step = 0),
-                        onProceed: _proceed,
-                      ),
+                child: switch (_step) {
+                  0 => _StepPickType(
+                      key: const ValueKey(0),
+                      selected: _typePicked ? _scanType : null,
+                      onSelect: (t) => setState(() {
+                        _scanType = t;
+                        _typePicked = true;
+                        _selectedSymptoms.clear();
+                        _riskFactors.clear();
+                      }),
+                      onNext: () => setState(() => _step = 1),
+                    ),
+                  1 => _StepUpload(
+                      key: const ValueKey(1),
+                      scanType: _scanType,
+                      imageBytes: _imageBytes,
+                      fileName: _fileName,
+                      picking: _picking,
+                      onCamera: () => _pickImage(ImageSource.camera),
+                      onGallery: () => _pickImage(ImageSource.gallery),
+                      onClear: () => setState(() { _imageBytes = null; _fileName = null; }),
+                      onBack: () => setState(() => _step = 0),
+                      onProceed: _proceed,
+                    ),
+                  2 => _StepSymptoms(
+                      key: const ValueKey(2),
+                      scanType: _scanType,
+                      selected: _selectedSymptoms,
+                      onToggle: (s) => setState(() {
+                        _selectedSymptoms.contains(s) ? _selectedSymptoms.remove(s) : _selectedSymptoms.add(s);
+                      }),
+                      onBack: () => setState(() => _step = 1),
+                      onNext: () => setState(() => _step = 3),
+                    ),
+                  _ => _StepRiskFactors(
+                      key: const ValueKey(3),
+                      scanType: _scanType,
+                      selectedRisks: _riskFactors,
+                      duration: _duration,
+                      onToggleRisk: (r) => setState(() {
+                        _riskFactors.contains(r) ? _riskFactors.remove(r) : _riskFactors.add(r);
+                      }),
+                      onSelectDuration: (d) => setState(() => _duration = d),
+                      onBack: () => setState(() => _step = 2),
+                      onFinish: _finish,
+                    ),
+                },
               ),
             ]),
           ),
@@ -123,7 +186,7 @@ class _StepBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(children: List.generate(3, (i) => Expanded(
+    return Row(children: List.generate(4, (i) => Expanded(
       child: Container(
         margin: EdgeInsets.only(left: i == 0 ? 0 : 6),
         height: 6,
@@ -146,7 +209,7 @@ class _StepPickType extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Step 1 of 3', style: GoogleFonts.notoSans(fontSize: 13, fontWeight: FontWeight.w700, color: JaColors.inkSoft, letterSpacing: 0.5)),
+      Text('Step 1 of 4', style: GoogleFonts.notoSans(fontSize: 13, fontWeight: FontWeight.w700, color: JaColors.inkSoft, letterSpacing: 0.5)),
       const SizedBox(height: 8),
       Text('What do you want to check?', style: GoogleFonts.nunito(fontSize: 26, fontWeight: FontWeight.w800, color: JaColors.ink)),
       const SizedBox(height: 6),
@@ -182,10 +245,10 @@ class _StepPickType extends StatelessWidget {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             textStyle: GoogleFonts.nunito(fontSize: 20, fontWeight: FontWeight.w700),
           ),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             Text('Next'),
-            const SizedBox(width: 8),
-            const Icon(Icons.arrow_forward, size: 20),
+            SizedBox(width: 8),
+            Icon(Icons.arrow_forward, size: 20),
           ]),
         ),
       ),
@@ -244,7 +307,7 @@ class _StepUpload extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasImage = imageBytes != null;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Step 2 of 3 — ${scanType == ScanType.oral ? "Mouth" : "Skin"}',
+      Text('Step 2 of 4 — ${scanType == ScanType.oral ? "Mouth" : "Skin"}',
           style: GoogleFonts.notoSans(fontSize: 13, fontWeight: FontWeight.w700, color: JaColors.inkSoft, letterSpacing: 0.5)),
       const SizedBox(height: 8),
       Text('Take a photo', style: GoogleFonts.nunito(fontSize: 26, fontWeight: FontWeight.w800, color: JaColors.ink)),
@@ -253,7 +316,6 @@ class _StepUpload extends StatelessWidget {
           style: GoogleFonts.notoSans(fontSize: 15, color: JaColors.inkSoft)),
       const SizedBox(height: 20),
 
-      // Upload area
       GestureDetector(
         onTap: picking ? null : onCamera,
         child: AnimatedContainer(
@@ -263,11 +325,7 @@ class _StepUpload extends StatelessWidget {
           decoration: BoxDecoration(
             color: hasImage ? JaColors.brandSoft : JaColors.bg,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: hasImage ? JaColors.brand : JaColors.line,
-              width: hasImage ? 2 : 2,
-              style: hasImage ? BorderStyle.solid : BorderStyle.solid,
-            ),
+            border: Border.all(color: hasImage ? JaColors.brand : JaColors.line, width: 2),
           ),
           clipBehavior: Clip.antiAlias,
           child: hasImage
@@ -327,7 +385,6 @@ class _StepUpload extends StatelessWidget {
         ),
       ],
 
-      // Tips box
       const SizedBox(height: 16),
       Container(
         padding: const EdgeInsets.all(14),
@@ -375,10 +432,205 @@ class _StepUpload extends StatelessWidget {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               textStyle: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w700),
             ),
+            child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Text('Next: Symptoms'),
+              SizedBox(width: 8),
+              Icon(Icons.arrow_forward, size: 20),
+            ]),
+          ),
+        ),
+      ]),
+    ]);
+  }
+}
+
+// ── Step 3: Symptom chips ─────────────────────────────────────────────────────
+class _StepSymptoms extends StatelessWidget {
+  final ScanType scanType;
+  final Set<String> selected;
+  final void Function(String) onToggle;
+  final VoidCallback onBack, onNext;
+  const _StepSymptoms({super.key, required this.scanType, required this.selected, required this.onToggle, required this.onBack, required this.onNext});
+
+  @override
+  Widget build(BuildContext context) {
+    final chips = scanType == ScanType.oral ? _oralSymptoms : _skinSymptoms;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('Step 3 of 4', style: GoogleFonts.notoSans(fontSize: 13, fontWeight: FontWeight.w700, color: JaColors.inkSoft, letterSpacing: 0.5)),
+      const SizedBox(height: 8),
+      Text('Any symptoms?', style: GoogleFonts.nunito(fontSize: 26, fontWeight: FontWeight.w800, color: JaColors.ink)),
+      const SizedBox(height: 6),
+      Text('Select all that apply. Skip if none match.', style: GoogleFonts.notoSans(fontSize: 15, color: JaColors.inkSoft)),
+      const SizedBox(height: 20),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: chips.map((chip) {
+          final on = selected.contains(chip);
+          return GestureDetector(
+            onTap: () => onToggle(chip),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                color: on ? JaColors.brand : JaColors.surface,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: on ? JaColors.brand : JaColors.line),
+              ),
+              child: Text(chip, style: GoogleFonts.notoSans(
+                fontSize: 13, fontWeight: FontWeight.w600,
+                color: on ? Colors.white : JaColors.inkSoft,
+              )),
+            ),
+          );
+        }).toList(),
+      ),
+      const SizedBox(height: 28),
+      Row(children: [
+        Expanded(
+          flex: 1,
+          child: OutlinedButton(
+            onPressed: onBack,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: JaColors.inkSoft,
+              side: const BorderSide(color: JaColors.line, width: 1.5),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              textStyle: GoogleFonts.notoSans(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            child: const Text('Back'),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 2,
+          child: ElevatedButton(
+            onPressed: onNext,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: JaColors.brand,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              textStyle: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              const Text('Check my photo'),
+              Text(selected.isEmpty ? 'Skip' : 'Next'),
               const SizedBox(width: 8),
               const Icon(Icons.arrow_forward, size: 20),
+            ]),
+          ),
+        ),
+      ]),
+    ]);
+  }
+}
+
+// ── Step 4: Risk factors + duration ──────────────────────────────────────────
+class _StepRiskFactors extends StatelessWidget {
+  final ScanType scanType;
+  final Set<String> selectedRisks;
+  final String duration;
+  final void Function(String) onToggleRisk;
+  final void Function(String) onSelectDuration;
+  final VoidCallback onBack, onFinish;
+  const _StepRiskFactors({super.key, required this.scanType, required this.selectedRisks, required this.duration, required this.onToggleRisk, required this.onSelectDuration, required this.onBack, required this.onFinish});
+
+  @override
+  Widget build(BuildContext context) {
+    final risks = scanType == ScanType.oral ? _oralRisks : _skinRisks;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('Step 4 of 4', style: GoogleFonts.notoSans(fontSize: 13, fontWeight: FontWeight.w700, color: JaColors.inkSoft, letterSpacing: 0.5)),
+      const SizedBox(height: 8),
+      Text('A bit more context', style: GoogleFonts.nunito(fontSize: 26, fontWeight: FontWeight.w800, color: JaColors.ink)),
+      const SizedBox(height: 6),
+      Text('This helps the AI give you a more accurate result.', style: GoogleFonts.notoSans(fontSize: 15, color: JaColors.inkSoft)),
+      const SizedBox(height: 24),
+
+      Text('How long have you noticed this?',
+          style: GoogleFonts.notoSans(fontSize: 13, fontWeight: FontWeight.w700, color: JaColors.inkSoft, letterSpacing: 0.5)),
+      const SizedBox(height: 10),
+      Wrap(
+        spacing: 8, runSpacing: 8,
+        children: _durations.map((d) {
+          final on = duration == d;
+          return GestureDetector(
+            onTap: () => onSelectDuration(d),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+              decoration: BoxDecoration(
+                color: on ? JaColors.accent : JaColors.surface,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: on ? JaColors.accent : JaColors.line),
+              ),
+              child: Text(d, style: GoogleFonts.notoSans(
+                fontSize: 13, fontWeight: FontWeight.w600,
+                color: on ? Colors.white : JaColors.inkSoft,
+              )),
+            ),
+          );
+        }).toList(),
+      ),
+
+      const SizedBox(height: 24),
+      Text('Risk factors (select any that apply)',
+          style: GoogleFonts.notoSans(fontSize: 13, fontWeight: FontWeight.w700, color: JaColors.inkSoft, letterSpacing: 0.5)),
+      const SizedBox(height: 10),
+      Wrap(
+        spacing: 8, runSpacing: 8,
+        children: risks.map((r) {
+          final on = selectedRisks.contains(r);
+          return GestureDetector(
+            onTap: () => onToggleRisk(r),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                color: on ? JaColors.warn : JaColors.surface,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: on ? JaColors.warn : JaColors.line),
+              ),
+              child: Text(r, style: GoogleFonts.notoSans(
+                fontSize: 13, fontWeight: FontWeight.w600,
+                color: on ? Colors.white : JaColors.inkSoft,
+              )),
+            ),
+          );
+        }).toList(),
+      ),
+
+      const SizedBox(height: 28),
+      Row(children: [
+        Expanded(
+          flex: 1,
+          child: OutlinedButton(
+            onPressed: onBack,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: JaColors.inkSoft,
+              side: const BorderSide(color: JaColors.line, width: 1.5),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              textStyle: GoogleFonts.notoSans(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            child: const Text('Back'),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 2,
+          child: ElevatedButton(
+            onPressed: onFinish,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: JaColors.brand,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              textStyle: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+            child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Text('Check my photo'),
+              SizedBox(width: 8),
+              Icon(Icons.arrow_forward, size: 20),
             ]),
           ),
         ),
