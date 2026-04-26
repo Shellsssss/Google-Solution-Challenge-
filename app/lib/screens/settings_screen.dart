@@ -107,6 +107,22 @@ class SettingsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
+          // Sign out
+          _SectionHeader(title: 'Account'),
+          _InfoCard(
+            icon: Icons.logout,
+            iconColor: context.danger,
+            title: 'Sign Out',
+            subtitle: '',
+            destructive: true,
+            onTap: () async {
+              try {
+                await FirebaseAuth.instance.signOut();
+              } catch (_) {}
+            },
+          ),
+          const SizedBox(height: 16),
+
           // Version
           Center(
             child: Text('${s.settingsVersion}: 1.0.0',
