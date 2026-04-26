@@ -133,7 +133,7 @@ class _RegisterViewState extends State<_RegisterView> {
         }
         return;
       }
-      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium);
+      final pos = await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium));
       if (mounted) setState(() { _lat = pos.latitude; _lng = pos.longitude; });
     } catch (e) {
       if (mounted) {
