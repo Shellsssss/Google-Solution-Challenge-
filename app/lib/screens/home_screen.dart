@@ -22,7 +22,6 @@ class HomeScreen extends StatelessWidget {
             _DualCtaSection(lang: lang),
             _ReassureStrip(lang: lang),
             _HowItWorksSection(lang: lang),
-            _QuoteBand(),
             _FaqSection(lang: lang),
             const SizedBox(height: 40),
           ],
