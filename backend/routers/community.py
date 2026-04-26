@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from services.scan_store import get_community_data, get_heatmap_data, mark_zone_handled
+from services.volunteer_store import generate_tasks_from_community
 
 router = APIRouter(prefix="/community", tags=["community"])
 logger = logging.getLogger(__name__)
@@ -12,8 +13,12 @@ logger = logging.getLogger(__name__)
 
 @router.get("/data")
 def community_data():
-    """Return city-level aggregated risk data with resource suggestions (public)."""
-    return get_community_data()
+    """Return city-level aggregated risk data with resource suggestions (public).
+    Also auto-generates volunteer tasks for any new high-risk zones.
+    """
+    zones = get_community_data()
+    generate_tasks_from_community(zones)   # idempotent — skips existing cities
+    return zones
 
 
 @router.get("/heatmap")

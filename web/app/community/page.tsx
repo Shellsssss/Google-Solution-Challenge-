@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/shared/Navbar';
 import Footer from '@/components/shared/Footer';
-import { getCommunityData } from '@/lib/api';
+import { getCommunityData, getAllTasks, getAllVolunteers } from '@/lib/api';
 import type { CommunityZone } from '@/types';
 
 const RISK_COLOR: Record<string, string> = {
@@ -28,10 +28,18 @@ export default function CommunityPage() {
   const [loading, setLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false);
   const [activeZone, setActiveZone] = useState<CommunityZone | null>(null);
+  const [volunteerCount, setVolunteerCount] = useState(0);
+  const [taskMap, setTaskMap] = useState<Record<string, { status: string; assigned_name: string }>>({});
 
   useEffect(() => {
-    getCommunityData()
-      .then(setZones)
+    Promise.all([getCommunityData(), getAllTasks().catch(() => []), getAllVolunteers().catch(() => [])])
+      .then(([z, tasks, vols]) => {
+        setZones(z);
+        setVolunteerCount(vols.length);
+        const tm: Record<string, { status: string; assigned_name: string }> = {};
+        for (const t of tasks) tm[t.city] = { status: t.status, assigned_name: t.assigned_name };
+        setTaskMap(tm);
+      })
       .catch(() => setZones([]))
       .finally(() => setLoading(false));
   }, []);
@@ -90,6 +98,7 @@ export default function CommunityPage() {
             <p style="font-size:13px;margin:2px 0">Total scans: <b>${zone.total}</b></p>
             <p style="font-size:13px;margin:2px 0">High risk: <b style="color:${RISK_COLOR[zone.risk_zone]}">${zone.high_risk_pct}%</b></p>
             ${zone.needs_screening_camp ? '<p style="font-size:12px;color:#ef4444;margin-top:6px;font-weight:600">⚠ Screening camp recommended</p>' : ''}
+            ${(taskMap[zone.city] as any)?.assigned_name ? `<p style='font-size:12px;color:#3b82f6;margin-top:4px'>👤 Assigned: ${(taskMap[zone.city] as any).assigned_name}</p>` : ''}
             ${zone.handled ? `<p style="font-size:12px;color:#22c55e;margin-top:4px">✓ Handled by ${zone.handled_by || 'volunteer'}</p>` : ''}
           </div>
         `,
@@ -126,11 +135,12 @@ export default function CommunityPage() {
       <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '32px 20px 80px' }}>
 
         {/* KPI strip */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '28px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '28px' }}>
           {[
             { label: 'Total Screenings', val: totalScans, color: 'var(--brand)' },
             { label: 'High-Risk Areas', val: highRiskZones, color: '#ef4444' },
             { label: 'Camps Needed', val: campZones, color: '#f59e0b' },
+            { label: 'Active Volunteers', val: volunteerCount, color: '#3b82f6' },
           ].map((k) => (
             <div key={k.label} style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: '16px', padding: '20px 24px' }}>
               <p style={{ fontSize: '13px', color: 'var(--ink-soft)', marginBottom: '6px' }}>{k.label}</p>

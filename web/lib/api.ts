@@ -21,6 +21,8 @@ import type {
   ScanType,
   User,
   CommunityZone,
+  VolunteerProfile,
+  VolunteerTask,
 } from '@/types';
 
 export const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000') + '/api/v1';
@@ -327,6 +329,77 @@ export async function markZoneHandled(city: string, volunteer_name: string): Pro
     body: JSON.stringify({ volunteer_name, action: 'handled' }),
   });
   return handleResponse<{ success: boolean }>(res);
+}
+
+// ─── Volunteer ───────────────────────────────────────────
+export interface RegisterVolunteerPayload {
+  name: string;
+  phone?: string;
+  org?: string;
+  lat?: number;
+  lng?: number;
+  skills?: string[];
+}
+
+export async function registerVolunteer(data: RegisterVolunteerPayload): Promise<VolunteerProfile> {
+  const res = await fetch(`${API_BASE}/volunteer/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<VolunteerProfile>(res);
+}
+
+export async function getVolunteer(vid: string): Promise<VolunteerProfile> {
+  const res = await fetch(`${API_BASE}/volunteer/${vid}`);
+  return handleResponse<VolunteerProfile>(res);
+}
+
+export async function getAllVolunteers(): Promise<VolunteerProfile[]> {
+  const res = await fetch(`${API_BASE}/volunteer/all/list`);
+  return handleResponse<VolunteerProfile[]>(res);
+}
+
+export async function getVolunteerTasks(vid: string): Promise<{ available: VolunteerTask[]; accepted: VolunteerTask[]; completed: VolunteerTask[] }> {
+  const res = await fetch(`${API_BASE}/volunteer/${vid}/tasks`);
+  return handleResponse<{ available: VolunteerTask[]; accepted: VolunteerTask[]; completed: VolunteerTask[] }>(res);
+}
+
+export async function getAllTasks(): Promise<VolunteerTask[]> {
+  const res = await fetch(`${API_BASE}/volunteer/tasks/all`);
+  return handleResponse<VolunteerTask[]>(res);
+}
+
+export async function getOpenTasks(lat?: number, lng?: number): Promise<VolunteerTask[]> {
+  const qs = new URLSearchParams();
+  if (lat !== undefined) qs.set('lat', String(lat));
+  if (lng !== undefined) qs.set('lng', String(lng));
+  const res = await fetch(`${API_BASE}/volunteer/tasks/open?${qs}`);
+  return handleResponse<VolunteerTask[]>(res);
+}
+
+export async function acceptTask(vid: string, tid: string): Promise<{ success: boolean }> {
+  const res = await fetch(`${API_BASE}/volunteer/${vid}/tasks/${tid}/accept`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+  return handleResponse<{ success: boolean }>(res);
+}
+
+export async function declineTask(vid: string, tid: string): Promise<{ success: boolean }> {
+  const res = await fetch(`${API_BASE}/volunteer/${vid}/tasks/${tid}/decline`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+  return handleResponse<{ success: boolean }>(res);
+}
+
+export async function completeTask(vid: string, tid: string, notes = ''): Promise<{ success: boolean }> {
+  const res = await fetch(`${API_BASE}/volunteer/${vid}/tasks/${tid}/complete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ notes }),
+  });
+  return handleResponse<{ success: boolean }>(res);
+}
+
+export async function getSmartMatches(city: string): Promise<{ city: string; lat: number; lng: number; nearest_volunteers: (VolunteerProfile & { distance_km: number })[] }> {
+  const res = await fetch(`${API_BASE}/volunteer/match/${encodeURIComponent(city)}`);
+  return handleResponse(res);
 }
 
 // ─── Health ──────────────────────────────────────────────
