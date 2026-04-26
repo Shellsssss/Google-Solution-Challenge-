@@ -44,73 +44,92 @@ export default function CommunityPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Load Google Maps JS API
+  // Load Google Maps JS API once — use onload, never remove the script
   useEffect(() => {
     const apiKey = process.env.NEXT_PUBLIC_MAPS_KEY;
-    if (!apiKey) { setMapReady(true); return; }
+    if (!apiKey) return;
 
+    // Already loaded
     if ((window as any).google?.maps) { setMapReady(true); return; }
 
-    (window as any).initCommunityMap = () => setMapReady(true);
+    // Script already injected (strict-mode double-run guard)
+    if (document.querySelector('script[data-gm]')) return;
+
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initCommunityMap`;
+    script.setAttribute('data-gm', '1');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
     script.async = true;
+    script.defer = true;
+    script.onload = () => setMapReady(true);
+    script.onerror = () => console.error('[Maps] Failed to load Google Maps JS API — check key + billing');
     document.head.appendChild(script);
-    return () => { document.head.removeChild(script); };
   }, []);
 
-  // Draw map when both data and API are ready
+  // Draw / redraw map whenever data or API readiness changes
   useEffect(() => {
-    if (!mapReady || !mapRef.current || zones.length === 0 || !(window as any).google?.maps) return;
-    const google: GoogleMaps = (window as any).google;
+    if (!mapReady || !mapRef.current || zones.length === 0) return;
+    const g = (window as any).google;
+    if (!g?.maps) return;
 
-    const map = new google.maps.Map(mapRef.current, {
+    // Clear previous map instance
+    mapRef.current.innerHTML = '';
+
+    const map = new g.maps.Map(mapRef.current, {
       center: { lat: 20.5937, lng: 78.9629 },
       zoom: 5,
       mapTypeControl: false,
       streetViewControl: false,
+      fullscreenControl: false,
       styles: [
         { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+        { featureType: 'transit', stylers: [{ visibility: 'off' }] },
         { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#c9e8f5' }] },
       ],
     });
 
+    const openInfoRef: { current: any } = { current: null };
+
     zones.forEach((zone) => {
       if (!zone.lat || !zone.lng) return;
-      const radius = Math.max(20000, Math.min(80000, zone.total * 3000));
-      const circle = new google.maps.Circle({
+      const radius = Math.max(25000, Math.min(90000, zone.total * 4000));
+      const color = RISK_COLOR[zone.risk_zone] ?? '#94a3b8';
+
+      const circle = new g.maps.Circle({
         map,
         center: { lat: zone.lat, lng: zone.lng },
         radius,
-        fillColor: RISK_COLOR[zone.risk_zone] ?? '#94a3b8',
-        fillOpacity: 0.35,
-        strokeColor: RISK_COLOR[zone.risk_zone] ?? '#94a3b8',
-        strokeOpacity: 0.8,
+        fillColor: color,
+        fillOpacity: 0.32,
+        strokeColor: color,
+        strokeOpacity: 0.85,
         strokeWeight: 2,
+        clickable: true,
       });
 
-      const infoWindow = new google.maps.InfoWindow({
+      const taskInfo = taskMap[zone.city];
+      const infoWindow = new g.maps.InfoWindow({
         content: `
-          <div style="font-family:sans-serif;padding:4px 0;min-width:160px">
+          <div style="font-family:sans-serif;padding:4px 0;min-width:170px;max-width:220px">
             <b style="font-size:15px">${zone.city}</b>
-            <p style="color:#64748b;font-size:12px;margin:2px 0">${zone.state}</p>
-            <hr style="border:none;border-top:1px solid #e2e8f0;margin:6px 0"/>
-            <p style="font-size:13px;margin:2px 0">Total scans: <b>${zone.total}</b></p>
-            <p style="font-size:13px;margin:2px 0">High risk: <b style="color:${RISK_COLOR[zone.risk_zone]}">${zone.high_risk_pct}%</b></p>
-            ${zone.needs_screening_camp ? '<p style="font-size:12px;color:#ef4444;margin-top:6px;font-weight:600">⚠ Screening camp recommended</p>' : ''}
-            ${(taskMap[zone.city] as any)?.assigned_name ? `<p style='font-size:12px;color:#3b82f6;margin-top:4px'>👤 Assigned: ${(taskMap[zone.city] as any).assigned_name}</p>` : ''}
-            ${zone.handled ? `<p style="font-size:12px;color:#22c55e;margin-top:4px">✓ Handled by ${zone.handled_by || 'volunteer'}</p>` : ''}
-          </div>
-        `,
+            <p style="color:#64748b;font-size:12px;margin:2px 0 0">${zone.state}</p>
+            <hr style="border:none;border-top:1px solid #e2e8f0;margin:8px 0"/>
+            <p style="font-size:13px;margin:3px 0">Total scans: <b>${zone.total}</b></p>
+            <p style="font-size:13px;margin:3px 0">High risk: <b style="color:${color}">${zone.high_risk_pct.toFixed(1)}%</b></p>
+            ${zone.needs_screening_camp && !zone.handled ? '<p style="font-size:12px;color:#ef4444;margin-top:8px;font-weight:700">⚠ Screening camp recommended</p>' : ''}
+            ${taskInfo?.assigned_name ? `<p style="font-size:12px;color:#3b82f6;margin-top:4px">👤 ${taskInfo.assigned_name}</p>` : ''}
+            ${zone.handled ? `<p style="font-size:12px;color:#22c55e;margin-top:4px;font-weight:600">✓ Handled by ${zone.handled_by || 'volunteer'}</p>` : ''}
+          </div>`,
       });
 
       circle.addListener('click', () => {
+        if (openInfoRef.current) openInfoRef.current.close();
         infoWindow.setPosition({ lat: zone.lat, lng: zone.lng });
         infoWindow.open(map);
+        openInfoRef.current = infoWindow;
         setActiveZone(zone);
       });
     });
-  }, [mapReady, zones]);
+  }, [mapReady, zones, taskMap]);
 
   const totalScans = zones.reduce((s, z) => s + z.total, 0);
   const highRiskZones = zones.filter((z) => z.risk_zone === 'HIGH').length;
