@@ -147,10 +147,13 @@ class _PatientInfoScreenState extends State<PatientInfoScreen> {
       nav.push(
         MaterialPageRoute(
           builder: (_) => SymptomsScreen(
-            imageBytes:  widget.imageBytes,
-            scanType:    widget.scanType,
-            questions:   questions,
-            patientInfo: patient,
+            imageBytes:       widget.imageBytes,
+            scanType:         widget.scanType,
+            questions:        questions,
+            patientInfo:      patient,
+            selectedSymptoms: widget.selectedSymptoms,
+            riskFactors:      widget.riskFactors,
+            duration:         widget.duration,
           ),
         ),
       );
