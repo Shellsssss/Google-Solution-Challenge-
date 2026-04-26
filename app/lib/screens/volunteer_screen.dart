@@ -119,18 +119,30 @@ class _RegisterViewState extends State<_RegisterView> {
   String _error = '';
 
   Future<void> _detectLocation() async {
-    // Use geolocator if available; fallback: skip
     setState(() => _gpsLoading = true);
-    await Future.delayed(const Duration(milliseconds: 300));
-    // Without geolocator package we can't get GPS — show info
-    if (mounted) {
-      setState(() { _gpsLoading = false; });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Location detection requires GPS permission — grant it in device settings and retry.'),
-          backgroundColor: JaColors.inkSoft,
-        ),
-      );
+    try {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location permission denied. Enable it in Settings.'), backgroundColor: JaColors.inkSoft),
+          );
+        }
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium);
+      if (mounted) setState(() { _lat = pos.latitude; _lng = pos.longitude; });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not get location. Check GPS settings.'), backgroundColor: JaColors.inkSoft),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _gpsLoading = false);
     }
   }
 
