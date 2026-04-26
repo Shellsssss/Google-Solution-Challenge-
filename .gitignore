@@ -40,9 +40,11 @@ models/*.pb
 Thumbs.db
 
 # Secrets / Credentials
-*.json
-!pubspec.json
 firebase-credentials.json
+firebase-service-account.json
+service-account*.json
+*-service-account.json
 google-services.json
 GoogleService-Info.plist
-service-account*.json
+*credentials*.json
+*secret*.json
