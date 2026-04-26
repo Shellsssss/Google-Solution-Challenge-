@@ -29,6 +29,10 @@ models/*.pb
 *.pkl
 *.bin
 
+# Node
+node_modules/
+package-lock.json
+
 # General
 .DS_Store
 *.log
@@ -42,6 +46,7 @@ Thumbs.db
 # Secrets / Credentials
 firebase-credentials.json
 firebase-service-account.json
+*firebase-adminsdk*.json
 service-account*.json
 *-service-account.json
 google-services.json
