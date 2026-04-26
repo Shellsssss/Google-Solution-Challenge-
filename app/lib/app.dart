@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'providers/app_provider.dart';
+import 'screens/login_screen.dart';
 import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
 
@@ -15,7 +17,37 @@ class JanArogyaApp extends StatelessWidget {
       title: 'JanArogya',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.get(),
-      home: const SplashScreen(),
+      home: const _AuthGate(),
     );
+  }
+}
+
+class _AuthGate extends StatelessWidget {
+  const _AuthGate();
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: _authStream(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator(color: JaColors.brand)));
+        }
+        // If signed in (including anonymous), go to app
+        if (snapshot.hasData && snapshot.data != null) {
+          return const SplashScreen();
+        }
+        return const LoginScreen();
+      },
+    );
+  }
+
+  Stream<User?> _authStream() {
+    try {
+      return FirebaseAuth.instance.authStateChanges();
+    } catch (_) {
+      // Firebase not configured — skip auth
+      return Stream.value(null);
+    }
   }
 }
