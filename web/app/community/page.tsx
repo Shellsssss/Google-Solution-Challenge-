@@ -178,14 +178,13 @@ export default function CommunityPage() {
               ))}
             </div>
           </div>
-          {!process.env.NEXT_PUBLIC_MAPS_KEY ? (
-            <div style={{ padding: '60px', textAlign: 'center', color: 'var(--ink-soft)' }}>
-              <p>Map requires <code>NEXT_PUBLIC_MAPS_KEY</code> env var.</p>
-              <p style={{ fontSize: '13px', marginTop: '8px' }}>Area data is available in the table below.</p>
-            </div>
-          ) : (
-            <div ref={mapRef} style={{ height: '420px', width: '100%' }} />
-          )}
+          <div ref={mapRef} style={{ height: '420px', width: '100%' }}>
+            {!mapReady && (
+              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-soft)', fontSize: '14px' }}>
+                Loading map…
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Zone table */}
