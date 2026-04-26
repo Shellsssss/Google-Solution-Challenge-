@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import 'home_screen.dart';
 import 'scan_entry_screen.dart';
 import 'clinics_screen.dart';
+import 'community_screen.dart';
 import 'history_screen.dart';
 import 'settings_screen.dart';
 
@@ -23,6 +24,7 @@ class _MainShellState extends State<MainShell> {
     HomeScreen(),
     ScanEntryScreen(),
     ClinicsScreen(),
+    CommunityScreen(),
     HistoryScreen(),
     SettingsScreen(),
   ];
@@ -63,6 +65,11 @@ class _MainShellState extends State<MainShell> {
               icon: Icon(Icons.local_hospital_outlined),
               activeIcon: Icon(Icons.local_hospital),
               label: 'Clinics',
+            ),
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.map_outlined),
+              activeIcon: Icon(Icons.map),
+              label: 'Community',
             ),
             BottomNavigationBarItem(
               icon: const Icon(Icons.history_outlined),

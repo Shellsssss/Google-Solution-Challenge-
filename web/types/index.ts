@@ -228,6 +228,39 @@ export interface AnalyticsGeography {
   high_risk_count: number;
 }
 
+// ─── Volunteer ───────────────────────────────────────────
+export interface VolunteerProfile {
+  volunteer_id: string;
+  name: string;
+  phone: string;
+  org: string;
+  lat?: number;
+  lng?: number;
+  skills: string[];
+  available: boolean;
+  registered_at: string;
+  accepted_task_ids: string[];
+}
+
+export interface VolunteerTask {
+  task_id: string;
+  city: string;
+  state: string;
+  lat: number;
+  lng: number;
+  task_type: 'screening_camp' | 'patient_followup' | 'awareness_drive';
+  urgency: 'HIGH' | 'MEDIUM';
+  status: 'open' | 'assigned' | 'completed';
+  assigned_to: string;
+  assigned_name: string;
+  created_at: string;
+  completed_at: string;
+  notes: string;
+  high_risk_pct: number;
+  total_scans: number;
+  distance_km?: number;
+}
+
 // ─── Community / Volunteer ──────────────────────────────
 export interface CommunityZone {
   city: string;

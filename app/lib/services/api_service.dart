@@ -142,6 +142,111 @@ class ApiService {
     return null;
   }
 
+  // ── Community ───────────────────────────────────────────────────────────────
+
+  /// Fetch city-level community risk data (also triggers task generation).
+  Future<List<Map<String, dynamic>>> getCommunityData() async {
+    try {
+      final res = await http
+          .get(Uri.parse('$_baseUrl/api/v1/community/data'))
+          .timeout(const Duration(seconds: 15));
+      if (res.statusCode == 200) {
+        return List<Map<String, dynamic>>.from(jsonDecode(res.body) as List);
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  // ── Volunteer ───────────────────────────────────────────────────────────────
+
+  /// Register a new volunteer. Returns profile map with volunteer_id or null.
+  Future<Map<String, dynamic>?> registerVolunteer({
+    required String name,
+    String phone = '',
+    String org = 'Individual',
+    double? lat,
+    double? lng,
+    List<String> skills = const [],
+  }) async {
+    try {
+      final res = await http
+          .post(
+            Uri.parse('$_baseUrl/api/v1/volunteer/register'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'name': name,
+              'phone': phone,
+              'org': org,
+              if (lat != null) 'lat': lat,
+              if (lng != null) 'lng': lng,
+              'skills': skills,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) return jsonDecode(res.body) as Map<String, dynamic>;
+    } catch (_) {}
+    return null;
+  }
+
+  /// Get tasks split into available/accepted/completed for a volunteer.
+  Future<Map<String, dynamic>?> getVolunteerTasks(String vid) async {
+    try {
+      final res = await http
+          .get(Uri.parse('$_baseUrl/api/v1/volunteer/$vid/tasks'))
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) return jsonDecode(res.body) as Map<String, dynamic>;
+    } catch (_) {}
+    return null;
+  }
+
+  /// Accept a task.
+  Future<bool> acceptTask(String vid, String tid) async {
+    try {
+      final res = await http
+          .post(
+            Uri.parse('$_baseUrl/api/v1/volunteer/$vid/tasks/$tid/accept'),
+            headers: {'Content-Type': 'application/json'},
+            body: '{}',
+          )
+          .timeout(const Duration(seconds: 10));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Decline / unassign a task.
+  Future<bool> declineTask(String vid, String tid) async {
+    try {
+      final res = await http
+          .post(
+            Uri.parse('$_baseUrl/api/v1/volunteer/$vid/tasks/$tid/decline'),
+            headers: {'Content-Type': 'application/json'},
+            body: '{}',
+          )
+          .timeout(const Duration(seconds: 10));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Mark a task complete.
+  Future<bool> completeTask(String vid, String tid, {String notes = ''}) async {
+    try {
+      final res = await http
+          .post(
+            Uri.parse('$_baseUrl/api/v1/volunteer/$vid/tasks/$tid/complete'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'notes': notes}),
+          )
+          .timeout(const Duration(seconds: 10));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
   String get baseUrl => _baseUrl;
 
   List<Map<String, dynamic>> _fallbackQuestions(String scanType) {
