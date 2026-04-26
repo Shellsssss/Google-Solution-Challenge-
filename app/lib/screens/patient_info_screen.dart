@@ -13,11 +13,17 @@ import 'symptoms_screen.dart';
 class PatientInfoScreen extends StatefulWidget {
   final Uint8List imageBytes;
   final ScanType  scanType;
+  final List<String> selectedSymptoms;
+  final List<String> riskFactors;
+  final String duration;
 
   const PatientInfoScreen({
     super.key,
     required this.imageBytes,
     required this.scanType,
+    this.selectedSymptoms = const [],
+    this.riskFactors = const [],
+    this.duration = '',
   });
 
   @override
