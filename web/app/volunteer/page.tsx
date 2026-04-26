@@ -134,7 +134,7 @@ export default function VolunteerPage() {
   };
 
   const handleDecline = async (tid: string) => {
-    if (!vid) return;
+    if (!vid) { showToast('Register first to skip tasks.'); return; }
     setActionLoading(tid);
     await declineTask(vid, tid).catch(() => null);
     await loadTasks(vid);
