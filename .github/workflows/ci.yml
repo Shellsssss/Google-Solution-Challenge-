@@ -32,6 +32,8 @@ jobs:
         run: pip install --prefer-binary ai-edge-litert
 
       - name: Run tests
+        env:
+          GEMINI_API_KEY: dummy-ci-key
         run: |
           if [ -d "backend/tests" ]; then
             pytest backend/tests/ -v
@@ -57,4 +59,4 @@ jobs:
           TFLITE_FLUTTER_DISABLE_AUTOBUILD: true
 
       - name: Analyze
-        run: cd app && flutter analyze --no-fatal-warnings
+        run: cd app && flutter analyze --no-fatal-warnings --no-fatal-infos

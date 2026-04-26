@@ -493,3 +493,89 @@ def generate_report(data: dict) -> bytes:
 
     c.save()
     return buf.getvalue()
+
+
+# ── ASHA batch report ─────────────────────────────────────────────────────────
+
+def generate_asha_batch_report(scans: list[dict]) -> bytes:
+    """Generate a summary PDF listing all scans for ASHA worker review."""
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    c.setTitle("JanArogya — ASHA Batch Screening Report")
+
+    MARGIN_X = 40.0
+    y = PAGE_H - 48
+
+    # Header
+    c.setFillColor(C_TEAL)
+    c.rect(0, PAGE_H - 56, PAGE_W, 56, fill=1, stroke=0)
+    c.setFillColor(C_WHITE)
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(MARGIN_X, PAGE_H - 32, "JanArogya — ASHA Batch Screening Report")
+    c.setFont("Helvetica", 9)
+    c.drawString(MARGIN_X, PAGE_H - 46, f"Generated: {datetime.now().strftime('%d %b %Y, %I:%M %p')}  |  Total Scans: {len(scans)}")
+
+    y = PAGE_H - 72
+
+    if not scans:
+        c.setFillColor(C_GRAY)
+        c.setFont("Helvetica-Oblique", 11)
+        c.drawCentredString(PAGE_W / 2, y - 40, "No scans recorded yet.")
+        c.save()
+        return buf.getvalue()
+
+    # Column headers
+    cols = [MARGIN_X, MARGIN_X + 100, MARGIN_X + 210, MARGIN_X + 310, MARGIN_X + 420]
+    headers = ["Patient ID", "Risk Level", "Scan Type", "Urgency", "Date"]
+    c.setFillColor(C_NAVY)
+    c.rect(MARGIN_X - 4, y - 14, PAGE_W - 2 * MARGIN_X + 8, 18, fill=1, stroke=0)
+    c.setFillColor(C_WHITE)
+    c.setFont("Helvetica-Bold", 8)
+    for i, h in enumerate(headers):
+        c.drawString(cols[i], y - 8, h)
+    y -= 22
+
+    RISK_COLORS_MAP = {
+        "HIGH_RISK":   C_RED,
+        "MEDIUM_RISK": colors.HexColor("#F59E0B"),
+        "LOW_RISK":    C_TEAL,
+    }
+
+    for idx, scan in enumerate(scans):
+        if y < MARGIN + 30:
+            c.showPage()
+            y = PAGE_H - 40
+
+        row_bg = C_LGRAY if idx % 2 == 0 else C_WHITE
+        c.setFillColor(row_bg)
+        c.rect(MARGIN_X - 4, y - 12, PAGE_W - 2 * MARGIN_X + 8, 16, fill=1, stroke=0)
+
+        risk = scan.get("risk_level", "UNKNOWN")
+        risk_color = RISK_COLORS_MAP.get(risk, C_GRAY)
+
+        c.setFillColor(C_BLACK)
+        c.setFont("Helvetica", 7.5)
+        phone_id = scan.get("phone_hash", scan.get("phone_masked", "—"))[:14]
+        c.drawString(cols[0], y - 8, phone_id)
+
+        c.setFillColor(risk_color)
+        c.setFont("Helvetica-Bold", 7.5)
+        c.drawString(cols[1], y - 8, risk.replace("_", " "))
+
+        c.setFillColor(C_BLACK)
+        c.setFont("Helvetica", 7.5)
+        c.drawString(cols[2], y - 8, (scan.get("scan_type") or "oral").title())
+        c.drawString(cols[3], y - 8, scan.get("action_urgency", "—"))
+        c.drawString(cols[4], y - 8, str(scan.get("scan_date", "—"))[:18])
+
+        y -= 18
+
+    # Footer
+    c.setFillColor(C_LGRAY)
+    c.rect(0, 0, PAGE_W, 28, fill=1, stroke=0)
+    c.setFillColor(C_GRAY)
+    c.setFont("Helvetica", 7)
+    c.drawCentredString(PAGE_W / 2, 10, "JanArogya — For screening purposes only. Not a clinical diagnosis.")
+
+    c.save()
+    return buf.getvalue()

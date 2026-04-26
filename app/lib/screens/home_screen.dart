@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 import 'scan_entry_screen.dart';
-import 'clinics_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
