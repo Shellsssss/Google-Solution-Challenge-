@@ -38,13 +38,23 @@ class _SymptomsScreenState extends State<SymptomsScreen> {
 
   void _proceed() {
     final type = widget.scanType == ScanType.oral ? 'oral' : 'skin';
+    final symptoms = Map<String, String>.from(_answers);
+    if (widget.selectedSymptoms.isNotEmpty) {
+      symptoms['pre_selected_symptoms'] = widget.selectedSymptoms.join(', ');
+    }
+    if (widget.riskFactors.isNotEmpty) {
+      symptoms['risk_factors'] = widget.riskFactors.join(', ');
+    }
+    if (widget.duration.isNotEmpty) {
+      symptoms['duration'] = widget.duration;
+    }
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
         builder: (_) => ScanScreen(
           imageBytes:   widget.imageBytes,
           scanType:     widget.scanType,
-          symptoms:     Map.from(_answers),
+          symptoms:     symptoms,
           scanTypeName: type,
           patientInfo:  widget.patientInfo,
         ),
