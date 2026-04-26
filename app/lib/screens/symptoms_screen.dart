@@ -14,6 +14,9 @@ class SymptomsScreen extends StatefulWidget {
   final ScanType                   scanType;
   final List<Map<String, dynamic>> questions;
   final PatientInfo                patientInfo;
+  final List<String>               selectedSymptoms;
+  final List<String>               riskFactors;
+  final String                     duration;
 
   const SymptomsScreen({
     super.key,
@@ -21,6 +24,9 @@ class SymptomsScreen extends StatefulWidget {
     required this.scanType,
     required this.questions,
     required this.patientInfo,
+    this.selectedSymptoms = const [],
+    this.riskFactors = const [],
+    this.duration = '',
   });
 
   @override
