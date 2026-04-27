@@ -146,9 +146,9 @@ def firebase_auth(req: GoogleAuthRequest):
             logger.error("Firebase Admin init failed: %s", exc)
             raise HTTPException(500, "Firebase not configured on server")
 
-    # Verify the token
+    # Verify the token (allow 60s clock skew for local dev)
     try:
-        decoded = fb_auth.verify_id_token(req.id_token)
+        decoded = fb_auth.verify_id_token(req.id_token, clock_skew_seconds=60)
     except Exception as exc:
         logger.warning("Firebase token invalid: %s", exc)
         raise HTTPException(status_code=401, detail="Invalid Firebase token")
