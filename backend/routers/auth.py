@@ -146,12 +146,33 @@ def firebase_auth(req: GoogleAuthRequest):
             logger.error("Firebase Admin init failed: %s", exc)
             raise HTTPException(500, "Firebase not configured on server")
 
-    # Verify the token (allow 60s clock skew for local dev)
+    # Verify the token — try with max allowed skew, fall back to manual decode on clock drift
     try:
         decoded = fb_auth.verify_id_token(req.id_token, clock_skew_seconds=60)
     except Exception as exc:
-        logger.warning("Firebase token invalid: %s", exc)
-        raise HTTPException(status_code=401, detail="Invalid Firebase token")
+        exc_str = str(exc)
+        if "used too early" in exc_str or "clock" in exc_str.lower():
+            # Clock skew > 60s: verify signature via google.auth directly (no iat limit)
+            try:
+                import google.auth.jwt as _gjwt
+                import google.oauth2.id_token as _gid
+                import google.auth.transport.requests as _gtr
+                import requests as _req
+                _session = _req.Session()
+                _request = _gtr.Request(session=_session)
+                decoded = _gid.verify_firebase_token(
+                    req.id_token, _request,
+                    audience=firebase_admin.get_app().project_id,
+                    clock_skew_in_seconds=300,
+                )
+                decoded["uid"] = decoded.get("sub", "")
+                logger.warning("Firebase token accepted with extended clock skew tolerance")
+            except Exception as exc2:
+                logger.warning("Firebase token invalid (fallback): %s", exc2)
+                raise HTTPException(status_code=401, detail="Invalid Firebase token")
+        else:
+            logger.warning("Firebase token invalid: %s", exc)
+            raise HTTPException(status_code=401, detail="Invalid Firebase token")
 
     uid   = decoded.get("uid", "")
     email = decoded.get("email") or f"{uid}@firebase.janarogya.health"
