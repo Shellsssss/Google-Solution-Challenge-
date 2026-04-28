@@ -42,7 +42,7 @@ export default function CommunityPage() {
       })
       .catch(() => setZones([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [taskMap]);
 
   // Load Google Maps JS API
   useEffect(() => {
@@ -195,7 +195,7 @@ export default function CommunityPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {zones.map((zone, i) => (
+                  {zones.map((zone) => (
                     <tr key={zone.city} style={{ borderBottom: '1px solid var(--line)', background: activeZone?.city === zone.city ? 'var(--brand-soft)' : 'transparent' }}
                       onClick={() => setActiveZone(zone)}>
                       <td style={{ padding: '12px 16px', fontWeight: 700 }}>{zone.city}</td>
