@@ -44,7 +44,22 @@ firebase-credentials.json
 firebase-service-account.json
 service-account*.json
 *-service-account.json
+*-adminsdk-*.json
 google-services.json
 GoogleService-Info.plist
 *credentials*.json
 *secret*.json
+
+# Node
+node_modules/
+package-lock.json
+web/package-lock.json
+
+# Claude
+.claude/
+app/.claude/
+
+# ML large files
+ml/data/raw/
+ml/models/*.h5
+ml/models/*.tflite

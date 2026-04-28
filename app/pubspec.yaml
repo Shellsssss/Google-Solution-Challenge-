@@ -75,4 +75,4 @@ flutter:
     - assets/models/janarogya_oral_int8.tflite
     - assets/models/labels_skin.json
     - assets/models/labels_oral.json
-    - assets/icon/
+

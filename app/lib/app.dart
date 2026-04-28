@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'providers/app_provider.dart';
 import 'screens/login_screen.dart';
+import 'screens/main_shell.dart';
 import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
 
@@ -27,6 +28,8 @@ class _AuthGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (context.watch<AppProvider>().isGuest) return const MainShell();
+
     return StreamBuilder<User?>(
       stream: _authStream(),
       builder: (context, snapshot) {

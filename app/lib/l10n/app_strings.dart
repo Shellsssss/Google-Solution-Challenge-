@@ -385,7 +385,8 @@ class AppStrings {
     'మిమ్మల్ని గుర్తించడానికి మాత్రమే మీ ఇమెయిల్‌ను ఉపయోగిస్తాం. మీ స్కాన్‌లు మీ ఫోన్‌లోనే ఉంటాయి.',
   );
   String get loginSigningIn   => _t('Signing in…', 'साइन इन हो रहा है…', 'உள்நுழைகிறது…', 'సైన్ ఇన్ అవుతోంది…');
-  String get loginFailed      => _t('Sign-in failed. Please try again.', 'साइन इन विफल। दोबारा कोशिश करें।', 'உள்நுழைவு தோல்வி. மீண்டும் முயற்சிக்கவும்.', 'సైన్ ఇన్ విఫలమైంది. మళ్ళీ ప్రయత్నించండి.');
+  String get loginFailed        => _t('Sign-in failed. Please try again.', 'साइन इन विफल। दोबारा कोशिश करें।', 'உள்நுழைவு தோல்வி. மீண்டும் முயற்சிக்கவும்.', 'సైన్ ఇన్ విఫలమైంది. మళ్ళీ ప్రయత్నించండి.');
+  String get loginContinueGuest => _t('Continue as Guest', 'अतिथि के रूप में जारी रखें', 'விருந்தினராக தொடரவும்', 'అతిథిగా కొనసాగించండి');
   String get signOut          => _t('Sign out', 'साइन आउट', 'வெளியேறு', 'సైన్ అవుట్');
   String get signOutConfirm   => _t('Sign out of JanArogya?', 'JanArogya से साइन आउट करें?', 'JanArogyaவிலிருந்து வெளியேறவா?', 'JanArogyaలో నుండి సైన్ అవుట్ చేయాలా?');
   String get account          => _t('Account', 'खाता', 'கணக்கு', 'ఖాతా');

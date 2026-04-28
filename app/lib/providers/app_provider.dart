@@ -8,9 +8,11 @@ class AppProvider extends ChangeNotifier {
   static const _keyProfileAge    = 'profile_age';
   static const _keyProfileGender = 'profile_gender';
   static const _keyProfilePhone  = 'profile_phone';
+  static const _keyGuest       = 'is_guest';
 
   String    _langCode  = 'en';
   ThemeMode _themeMode = ThemeMode.system;
+  bool      _isGuest   = false;
 
   // User profile
   String _profileName   = '';
@@ -20,6 +22,7 @@ class AppProvider extends ChangeNotifier {
 
   String    get langCode  => _langCode;
   ThemeMode get themeMode => _themeMode;
+  bool      get isGuest   => _isGuest;
 
   String get profileName   => _profileName;
   String get profileAge    => _profileAge;
@@ -44,6 +47,7 @@ class AppProvider extends ChangeNotifier {
     _profileAge    = prefs.getString(_keyProfileAge)    ?? '';
     _profileGender = prefs.getString(_keyProfileGender) ?? '';
     _profilePhone  = prefs.getString(_keyProfilePhone)  ?? '';
+    _isGuest       = prefs.getBool(_keyGuest)           ?? false;
     notifyListeners();
   }
 
@@ -66,6 +70,13 @@ class AppProvider extends ChangeNotifier {
     };
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyTheme, tm);
+  }
+
+  Future<void> setGuest(bool value) async {
+    _isGuest = value;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyGuest, value);
   }
 
   Future<void> saveProfile({

@@ -110,7 +110,22 @@ class _LoginScreenState extends State<LoginScreen> {
                 onTap: _busy ? null : _signIn,
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+
+              // ── Continue as Guest ───────────────────────────────────
+              TextButton(
+                onPressed: _busy ? null : () => context.read<AppProvider>().setGuest(true),
+                child: Text(
+                  s.loginContinueGuest,
+                  style: GoogleFonts.notoSans(
+                    fontSize: 14,
+                    color: JaColors.inkSoft,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 4),
 
               // ── Privacy note ────────────────────────────────────────
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
