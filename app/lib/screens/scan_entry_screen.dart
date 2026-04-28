@@ -426,7 +426,7 @@ class _StepUpload extends StatelessWidget {
               textStyle: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w700),
             ),
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Text(s.scanNextSymptoms),
+              const Text('Next: Symptoms'),
               const SizedBox(width: 8),
               const Icon(Icons.arrow_forward, size: 20),
             ]),
