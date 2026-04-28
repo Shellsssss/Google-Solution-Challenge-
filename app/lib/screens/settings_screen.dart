@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
-<<<<<<< HEAD
-import 'package:firebase_auth/firebase_auth.dart';
-=======
 import 'package:google_fonts/google_fonts.dart';
->>>>>>> challenge/main
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_strings.dart';
@@ -114,22 +110,6 @@ class SettingsScreen extends StatelessWidget {
                 style: TextStyle(
                     color: context.textSec, fontSize: 12,
                     fontStyle: FontStyle.italic, height: 1.5)),
-          ),
-          const SizedBox(height: 16),
-
-          // Sign out
-          const _SectionHeader(title: 'Account'),
-          _InfoCard(
-            icon: Icons.logout,
-            iconColor: context.danger,
-            title: 'Sign Out',
-            subtitle: '',
-            destructive: true,
-            onTap: () async {
-              try {
-                await FirebaseAuth.instance.signOut();
-              } catch (_) {}
-            },
           ),
           const SizedBox(height: 16),
 

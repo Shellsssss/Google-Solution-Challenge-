@@ -339,9 +339,6 @@ class _StepRow extends StatelessWidget {
   }
 }
 
-<<<<<<< HEAD
-=======
-// ── Quote band ────────────────────────────────────────────────────────────────
 // ── FAQ ───────────────────────────────────────────────────────────────────────
 class _FaqSection extends StatelessWidget {
   final AppStrings s;
