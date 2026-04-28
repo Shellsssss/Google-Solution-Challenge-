@@ -133,8 +133,7 @@ class _ClinicCard extends StatelessWidget {
           Text(clinic.meta, style: GoogleFonts.notoSans(fontSize: 13, color: JaColors.inkSoft)),
           const SizedBox(height: 12),
           Row(children: [
-<<<<<<< HEAD
-            _SmallBtn(label: 'Directions', icon: Icons.directions, onTap: () async {
+            _SmallBtn(label: s.clinicsDirections, icon: Icons.directions, onTap: () async {
                 final geo = Uri.parse('geo:0,0?q=${Uri.encodeComponent(clinic.name)}');
                 if (await canLaunchUrl(geo)) {
                   await launchUrl(geo);
@@ -142,9 +141,6 @@ class _ClinicCard extends StatelessWidget {
                   await launchUrl(Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(clinic.name)}'), mode: LaunchMode.externalApplication);
                 }
               }),
-=======
-            _SmallBtn(label: s.clinicsDirections, icon: Icons.directions, onTap: () {}),
->>>>>>> challenge/main
             const SizedBox(width: 8),
             _SmallBtn(
               label: s.clinicsCall,
