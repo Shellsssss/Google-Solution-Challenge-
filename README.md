@@ -106,6 +106,6 @@ docker-compose up --build
 | Resource | URL |
 |----------|-----|
 | WhatsApp Bot | TBD |
-| APK Download | TBD |
-| Demo Video | TBD |
-| Live API | TBD |
+| APK Download | Uploaded in this repo as JAN_AROGYA.apk |
+| Demo Video | [Link](https://drive.google.com/drive/folders/1A3FGdKcqo7nbvacMz3mHLVodK0ShiDt4?usp=drive_link) |
+| Live API | [JanArogya](https://jan-arogya-one.vercel.app) |

@@ -15,6 +15,8 @@ from pydantic import BaseModel
 from services.gemini_service import generate_pdf_narrative
 from services.pdf_service import generate_report
 
+BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
@@ -135,7 +137,7 @@ async def generate(req: ReportRequest):
     return {
         "success": True,
         "report_id": report_id,
-        "download_url": f"/api/v1/report/download/{report_id}",
+        "download_url": f"{BASE_URL}/api/v1/report/download/{report_id}",
         "filename": filename,
     }
 

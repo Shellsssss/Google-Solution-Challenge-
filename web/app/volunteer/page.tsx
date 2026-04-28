@@ -39,7 +39,7 @@ function getStoredVid(): string | null {
 export default function VolunteerPage() {
   const [view, setView] = useState<'register' | 'dashboard' | 'ngo'>('register');
   const [vid, setVid] = useState<string | null>(null);
-  const [profile, setProfile] = useState<VolunteerProfile | null>(null);
+  const [, setProfile] = useState<VolunteerProfile | null>(null);
 
   // Registration form
   const [regName, setRegName] = useState('');
@@ -205,7 +205,7 @@ export default function VolunteerPage() {
             <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: '20px', padding: '32px' }}>
               <h2 style={{ marginBottom: '8px' }}>Register as Volunteer</h2>
               <p style={{ color: 'var(--ink-soft)', fontSize: '14px', marginBottom: '24px', lineHeight: 1.5 }}>
-                Join our network of volunteers. We'll automatically match you to high-risk areas near your location.
+                Join our network of volunteers. We&apos;ll automatically match you to high-risk areas near your location.
               </p>
 
               {regError && <p style={{ color: 'var(--danger)', fontSize: '13px', marginBottom: '12px' }}>{regError}</p>}
