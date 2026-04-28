@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 enum ScanType  { oral, skin }
 enum RiskLevel { low, high, invalid }
 
@@ -12,6 +14,7 @@ class ScanResult {
   final String      concern;       // Gemini-generated layman "what to do" text
   final DateTime    timestamp;
   final Map<String, String>? symptoms;  // {English question text: English answer}
+  final Uint8List?  imageBytes;          // Photo bytes — persisted in history so reports can include the image
 
   // Legacy — kept for DB compatibility
   String get hindiMessage   => explanationHi;
@@ -28,6 +31,7 @@ class ScanResult {
     this.concern       = '',
     required this.timestamp,
     this.symptoms,
+    this.imageBytes,
   });
 
   ScanResult copyWith({
@@ -41,6 +45,7 @@ class ScanResult {
     String?     concern,
     DateTime?   timestamp,
     Map<String, String>? symptoms,
+    Uint8List?  imageBytes,
   }) => ScanResult(
     scanType:      scanType      ?? this.scanType,
     riskLevel:     riskLevel     ?? this.riskLevel,
@@ -52,6 +57,7 @@ class ScanResult {
     concern:       concern       ?? this.concern,
     timestamp:     timestamp     ?? this.timestamp,
     symptoms:      symptoms      ?? this.symptoms,
+    imageBytes:    imageBytes    ?? this.imageBytes,
   );
 
   /// Get explanation for a given language code.

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_strings.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 import 'scan_entry_screen.dart';
@@ -11,6 +12,7 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lang = context.watch<AppProvider>().langCode;
+    final s    = AppStrings(lang);
     return Scaffold(
       backgroundColor: JaColors.bg,
       appBar: _buildAppBar(context, lang),
@@ -18,11 +20,20 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+<<<<<<< HEAD
             _HeroSection(lang: lang),
             _DualCtaSection(lang: lang),
             _ReassureStrip(lang: lang),
             _HowItWorksSection(lang: lang),
             _FaqSection(lang: lang),
+=======
+            _HeroSection(s: s),
+            _DualCtaSection(s: s),
+            _ReassureStrip(s: s),
+            _HowItWorksSection(s: s),
+            _QuoteBand(s: s),
+            _FaqSection(s: s),
+>>>>>>> challenge/main
             const SizedBox(height: 40),
           ],
         ),
@@ -62,8 +73,8 @@ class HomeScreen extends StatelessWidget {
 
 // ── Hero ──────────────────────────────────────────────────────────────────────
 class _HeroSection extends StatelessWidget {
-  final String lang;
-  const _HeroSection({required this.lang});
+  final AppStrings s;
+  const _HeroSection({required this.s});
 
   @override
   Widget build(BuildContext context) {
@@ -89,41 +100,31 @@ class _HeroSection extends StatelessWidget {
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               const Icon(Icons.favorite, color: JaColors.brand, size: 14),
               const SizedBox(width: 6),
-              Text('Free · No internet needed',
+              Text(s.heroBadge,
                   style: GoogleFonts.notoSans(fontSize: 13, fontWeight: FontWeight.w700, color: JaColors.brandDark)),
             ]),
           ),
           const SizedBox(height: 20),
           Text.rich(TextSpan(children: [
-            TextSpan(text: _t(lang, 'heroLine1'), style: GoogleFonts.nunito(fontSize: 38, fontWeight: FontWeight.w800, color: JaColors.ink, height: 1.05)),
+            TextSpan(text: s.heroLine1, style: GoogleFonts.nunito(fontSize: 38, fontWeight: FontWeight.w800, color: JaColors.ink, height: 1.05)),
             TextSpan(text: '\n'),
-            TextSpan(text: _t(lang, 'heroLine2'), style: GoogleFonts.nunito(fontSize: 38, fontWeight: FontWeight.w800, color: JaColors.brand, height: 1.05)),
+            TextSpan(text: s.heroLine2, style: GoogleFonts.nunito(fontSize: 38, fontWeight: FontWeight.w800, color: JaColors.brand, height: 1.05)),
           ])),
           const SizedBox(height: 16),
-          Text(_t(lang, 'heroSub'),
+          Text(s.heroSub,
               style: GoogleFonts.notoSans(fontSize: 17, color: JaColors.inkSoft, height: 1.55)),
           const SizedBox(height: 28),
           // Stats row
           Row(children: [
-            _StatTile(value: '1,418', label: 'Checks today', bg: JaColors.brandSoft),
+            _StatTile(value: '1,418', label: s.statsTodayLabel, bg: JaColors.brandSoft),
             const SizedBox(width: 12),
-            _StatTile(value: '20s', label: 'Mouth check', bg: JaColors.accentSoft),
+            _StatTile(value: '20s', label: s.statsMouthLabel, bg: JaColors.accentSoft),
             const SizedBox(width: 12),
-            _StatTile(value: '30s', label: 'Skin check', bg: JaColors.warnSoft),
+            _StatTile(value: '30s', label: s.statsSkinLabel, bg: JaColors.warnSoft),
           ]),
         ],
       ),
     );
-  }
-
-  String _t(String lang, String key) {
-    const strings = {
-      'en': {'heroLine1': 'Find it early.', 'heroLine2': 'Stay healthy.', 'heroSub': 'Take a photo of your mouth or a mark on your skin. Our app checks it for you. Free. Takes less than a minute.'},
-      'hi': {'heroLine1': 'जल्दी पता लगाएं।', 'heroLine2': 'स्वस्थ रहें।', 'heroSub': 'अपने मुँह या त्वचा की तस्वीर लें। हमारा ऐप जांच करेगा।'},
-      'ta': {'heroLine1': 'உடன் கண்டறி।', 'heroLine2': 'ஆரோக்கியமாக இரு।', 'heroSub': 'வாய் அல்லது தோல் படம் எடுக்கவும். ஆப் சோதனை செய்யும்.'},
-      'te': {'heroLine1': 'ముందుగా కనుగొనండి.', 'heroLine2': 'ఆరోగ్యంగా ఉండండి.', 'heroSub': 'నోటి లేదా చర్మం ఫోటో తీయండి. యాప్ తనిఖీ చేస్తుంది.'},
-    };
-    return (strings[lang] ?? strings['en']!)[key] ?? '';
   }
 }
 
@@ -150,8 +151,8 @@ class _StatTile extends StatelessWidget {
 
 // ── Dual CTA ──────────────────────────────────────────────────────────────────
 class _DualCtaSection extends StatelessWidget {
-  final String lang;
-  const _DualCtaSection({required this.lang});
+  final AppStrings s;
+  const _DualCtaSection({required this.s});
 
   @override
   Widget build(BuildContext context) {
@@ -162,8 +163,9 @@ class _DualCtaSection extends StatelessWidget {
           icon: Icons.sentiment_satisfied_alt_outlined,
           iconBg: JaColors.brandSoft,
           iconColor: JaColors.brand,
-          title: _t(lang, 'mouth'),
-          subtitle: 'Lips, tongue, or inside your cheek. For people who chew tobacco or have a sore.',
+          title: s.ctaMouthTitle,
+          subtitle: s.ctaMouthSub,
+          startLabel: s.ctaStart,
           arrowColor: JaColors.brand,
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ScanEntryScreen(initialType: 'mouth'))),
         ),
@@ -172,32 +174,23 @@ class _DualCtaSection extends StatelessWidget {
           icon: Icons.wb_sunny_outlined,
           iconBg: JaColors.accentSoft,
           iconColor: JaColors.accent,
-          title: _t(lang, 'skin'),
-          subtitle: 'A mole, mark, or patch that has changed size, colour, or shape.',
+          title: s.ctaSkinTitle,
+          subtitle: s.ctaSkinSub,
+          startLabel: s.ctaStart,
           arrowColor: JaColors.accent,
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ScanEntryScreen(initialType: 'skin'))),
         ),
       ]),
     );
   }
-
-  String _t(String lang, String key) {
-    const s = {
-      'en': {'mouth': 'Check my mouth', 'skin': 'Check my skin'},
-      'hi': {'mouth': 'मुँह की जांच', 'skin': 'त्वचा की जांच'},
-      'ta': {'mouth': 'வாய் சோதனை', 'skin': 'தோல் சோதனை'},
-      'te': {'mouth': 'నోటి చెక్', 'skin': 'చర్మం చెక్'},
-    };
-    return (s[lang] ?? s['en']!)[key] ?? '';
-  }
 }
 
 class _CtaCard extends StatelessWidget {
   final IconData icon;
   final Color iconBg, iconColor, arrowColor;
-  final String title, subtitle;
+  final String title, subtitle, startLabel;
   final VoidCallback onTap;
-  const _CtaCard({required this.icon, required this.iconBg, required this.iconColor, required this.arrowColor, required this.title, required this.subtitle, required this.onTap});
+  const _CtaCard({required this.icon, required this.iconBg, required this.iconColor, required this.arrowColor, required this.title, required this.subtitle, required this.startLabel, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -224,7 +217,7 @@ class _CtaCard extends StatelessWidget {
             Text(subtitle, style: GoogleFonts.notoSans(fontSize: 14, color: JaColors.inkSoft, height: 1.4)),
             const SizedBox(height: 10),
             Row(children: [
-              Text('Start', style: GoogleFonts.notoSans(fontSize: 14, fontWeight: FontWeight.w700, color: arrowColor)),
+              Text(startLabel, style: GoogleFonts.notoSans(fontSize: 14, fontWeight: FontWeight.w700, color: arrowColor)),
               const SizedBox(width: 4),
               Icon(Icons.arrow_forward, size: 16, color: arrowColor),
             ]),
@@ -237,16 +230,16 @@ class _CtaCard extends StatelessWidget {
 
 // ── Reassure strip ────────────────────────────────────────────────────────────
 class _ReassureStrip extends StatelessWidget {
-  final String lang;
-  const _ReassureStrip({required this.lang});
+  final AppStrings s;
+  const _ReassureStrip({required this.s});
 
   @override
   Widget build(BuildContext context) {
     final items = [
-      (Icons.currency_rupee, 'Always free'),
-      (Icons.wifi_off, 'Works offline'),
-      (Icons.language, 'Your language'),
-      (Icons.lock_outline, 'Stays private'),
+      (Icons.currency_rupee, s.reassureFree),
+      (Icons.wifi_off, s.reassureOffline),
+      (Icons.language, s.reassureLanguage),
+      (Icons.lock_outline, s.reassurePrivate),
     ];
     return Container(
       width: double.infinity,
@@ -286,26 +279,26 @@ class _ReassureChip extends StatelessWidget {
 
 // ── How it works ──────────────────────────────────────────────────────────────
 class _HowItWorksSection extends StatelessWidget {
-  final String lang;
-  const _HowItWorksSection({required this.lang});
+  final AppStrings s;
+  const _HowItWorksSection({required this.s});
 
   @override
   Widget build(BuildContext context) {
     final steps = [
-      (Icons.camera_alt_outlined, 'Take a photo', 'Use any phone camera. Good light, close to the spot.', JaColors.brandSoft, JaColors.brand),
-      (Icons.search, 'We check it', 'The app looks at the photo for signs that a doctor should see.', JaColors.accentSoft, JaColors.accent),
-      (Icons.check_circle_outline, 'You get an answer', '"Looks fine" or "Please see a doctor". In your language.', JaColors.warnSoft, JaColors.warn),
+      (Icons.camera_alt_outlined, s.step1Title, s.step1Desc, JaColors.brandSoft, JaColors.brand),
+      (Icons.search, s.step2Title, s.step2Desc, JaColors.accentSoft, JaColors.accent),
+      (Icons.check_circle_outline, s.step3Title, s.step3Desc, JaColors.warnSoft, JaColors.warn),
     ];
     return Container(
       color: JaColors.surface,
       padding: const EdgeInsets.fromLTRB(20, 48, 20, 48),
       margin: const EdgeInsets.only(top: 28),
       child: Column(children: [
-        Text('How it works', style: GoogleFonts.notoSans(fontSize: 13, fontWeight: FontWeight.w700, color: JaColors.brand, letterSpacing: 1.0)),
+        Text(s.howItWorksLabel, style: GoogleFonts.notoSans(fontSize: 13, fontWeight: FontWeight.w700, color: JaColors.brand, letterSpacing: 1.0)),
         const SizedBox(height: 8),
-        Text('Three small steps', style: GoogleFonts.nunito(fontSize: 30, fontWeight: FontWeight.w800, color: JaColors.ink)),
+        Text(s.howItWorksTitle, style: GoogleFonts.nunito(fontSize: 30, fontWeight: FontWeight.w800, color: JaColors.ink)),
         const SizedBox(height: 6),
-        Text("You don't need to read a lot. Just a phone and a photo.",
+        Text(s.howItWorksSub,
             textAlign: TextAlign.center,
             style: GoogleFonts.notoSans(fontSize: 16, color: JaColors.inkSoft)),
         const SizedBox(height: 32),
@@ -355,23 +348,51 @@ class _StepRow extends StatelessWidget {
   }
 }
 
+<<<<<<< HEAD
+=======
+// ── Quote band ────────────────────────────────────────────────────────────────
+class _QuoteBand extends StatelessWidget {
+  final AppStrings s;
+  const _QuoteBand({required this.s});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: JaColors.brand,
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 48),
+      child: Column(children: [
+        Text(
+          s.quoteText,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.nunito(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white, height: 1.4),
+        ),
+        const SizedBox(height: 14),
+        Text(s.quoteAttribution,
+            style: GoogleFonts.notoSans(fontSize: 14, color: Colors.white70, fontWeight: FontWeight.w500)),
+      ]),
+    );
+  }
+}
+
+>>>>>>> challenge/main
 // ── FAQ ───────────────────────────────────────────────────────────────────────
 class _FaqSection extends StatelessWidget {
-  final String lang;
-  const _FaqSection({required this.lang});
+  final AppStrings s;
+  const _FaqSection({required this.s});
 
   @override
   Widget build(BuildContext context) {
     final faqs = [
-      ('Is it really free?', 'Yes. No charges, no ads, no subscription. Ever. JanArogya is supported by the government and volunteer doctors.'),
-      ('Will the doctor see my photo?', 'Only if the app thinks something looks serious, and only with your permission. You are in control.'),
-      ('What if I don\'t have internet?', 'The check works on the phone itself, without internet. Your result is ready straight away.'),
-      ('Is this a replacement for a doctor?', 'No. This is an early warning. If the result says "please see a doctor", please go to your nearest clinic.'),
+      (s.faq1Q, s.faq1A),
+      (s.faq2Q, s.faq2A),
+      (s.faq3Q, s.faq3A),
+      (s.faq4Q, s.faq4A),
     ];
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 40, 20, 20),
       child: Column(children: [
-        Text('Things people ask', style: GoogleFonts.nunito(fontSize: 28, fontWeight: FontWeight.w800, color: JaColors.ink)),
+        Text(s.faqTitle, style: GoogleFonts.nunito(fontSize: 28, fontWeight: FontWeight.w800, color: JaColors.ink)),
         const SizedBox(height: 24),
         ...faqs.map((faq) => _FaqItem(q: faq.$1, a: faq.$2)),
         const SizedBox(height: 32),
@@ -380,7 +401,7 @@ class _FaqSection extends StatelessWidget {
           child: ElevatedButton.icon(
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ScanEntryScreen())),
             icon: const Icon(Icons.camera_alt),
-            label: const Text('Start a free check'),
+            label: Text(s.faqStartFreeCheck),
             style: ElevatedButton.styleFrom(
               backgroundColor: JaColors.brand,
               foregroundColor: Colors.white,

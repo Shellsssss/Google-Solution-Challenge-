@@ -1,8 +1,9 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'app.dart';
+import 'firebase_options.dart';
 import 'providers/app_provider.dart';
 
 void main() async {
@@ -14,7 +15,9 @@ void main() async {
   ]);
 
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   } catch (_) {
     // google-services.json not present — Firebase features disabled
   }

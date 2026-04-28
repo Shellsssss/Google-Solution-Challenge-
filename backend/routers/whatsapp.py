@@ -108,6 +108,24 @@ async def _dispatch(body: dict) -> None:
     elif msg_type == "audio":
         audio_id = msg.get("audio", {}).get("id", "")
         await handle_audio(sender, audio_id)
+    elif msg_type == "interactive":
+        interactive = msg.get("interactive", {})
+
+        # Button reply
+        if interactive.get("type") == "button_reply":
+            button_id = interactive["button_reply"]["id"]
+
+            logger.info("Button clicked: %s from %s", button_id, sender)
+
+            await handle_text(sender, button_id)
+
+        # List reply (if you ever use lists)
+        elif interactive.get("type") == "list_reply":
+            list_id = interactive["list_reply"]["id"]
+
+            logger.info("List selected: %s from %s", list_id, sender)
+
+            await handle_text(sender, list_id)
 
     else:
         logger.info("Unhandled message type: %s from %s", msg_type, sender)

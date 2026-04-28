@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../l10n/app_strings.dart';
 import '../models/volunteer_models.dart';
+import '../providers/app_provider.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import 'volunteer_screen.dart';
@@ -52,7 +55,8 @@ class _CommunityScreenState extends State<CommunityScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final totalScans   = _zones.fold(0, (s, z) => s + z.total);
+    final s = AppStrings(context.watch<AppProvider>().langCode);
+    final totalScans   = _zones.fold(0, (n, z) => n + z.total);
     final highRiskZones = _zones.where((z) => z.riskZone == 'HIGH').length;
     final campNeeded   = _zones.where((z) => z.needsScreeningCamp && !z.handled).length;
 
@@ -61,9 +65,9 @@ class _CommunityScreenState extends State<CommunityScreen> {
       appBar: AppBar(
         backgroundColor: JaColors.surface,
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Community Insights',
+          Text(s.communityTitle,
               style: GoogleFonts.nunito(fontSize: 20, fontWeight: FontWeight.w800, color: JaColors.ink)),
-          Text('Area-level screening risk data',
+          Text(s.communitySubtitle,
               style: GoogleFonts.notoSans(fontSize: 12, color: JaColors.inkSoft)),
         ]),
         bottom: PreferredSize(
@@ -94,11 +98,11 @@ class _CommunityScreenState extends State<CommunityScreen> {
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Row(children: [
-                        _KpiCard(label: 'Total Scans', value: '$totalScans', color: JaColors.brand),
+                        _KpiCard(label: s.kpiTotalScans, value: '$totalScans', color: JaColors.brand),
                         const SizedBox(width: 10),
-                        _KpiCard(label: 'High-Risk Areas', value: '$highRiskZones', color: JaColors.danger),
+                        _KpiCard(label: s.kpiHighRiskAreas, value: '$highRiskZones', color: JaColors.danger),
                         const SizedBox(width: 10),
-                        _KpiCard(label: 'Camps Needed', value: '$campNeeded', color: JaColors.warn),
+                        _KpiCard(label: s.kpiCampsNeeded, value: '$campNeeded', color: JaColors.warn),
                       ]),
                     ),
                   ),
@@ -120,7 +124,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                             const SizedBox(width: 10),
                             Expanded(
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                Text('Screening Camps Recommended',
+                                Text(s.screeningCampsRecommended,
                                     style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: JaColors.danger, fontSize: 14)),
                                 Text(
                                   _zones.where((z) => z.needsScreeningCamp && !z.handled).map((z) => z.city).join(', '),
@@ -142,7 +146,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                      child: Text('Risk Zones',
+                      child: Text(s.riskZonesTitle,
                           style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w800, color: JaColors.ink)),
                     ),
                   ),
@@ -197,7 +201,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                      child: Text('Area Details',
+                      child: Text(s.areaDetailsTitle,
                           style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w800, color: JaColors.ink)),
                     ),
                   ),
@@ -209,10 +213,10 @@ class _CommunityScreenState extends State<CommunityScreen> {
                             child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                               const Text('🌿', style: TextStyle(fontSize: 48)),
                               const SizedBox(height: 12),
-                              Text('No community data yet.',
+                              Text(s.communityNoData,
                                   style: GoogleFonts.notoSans(color: JaColors.inkSoft, fontSize: 15)),
                               const SizedBox(height: 6),
-                              Text('Scan with location enabled to populate the map.',
+                              Text(s.communityNoDataHint,
                                   style: GoogleFonts.notoSans(color: JaColors.inkSoft, fontSize: 13),
                                   textAlign: TextAlign.center),
                             ]),

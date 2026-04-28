@@ -100,6 +100,20 @@ def _urgency(risk_level: str, action_required: bool) -> str:
         return "within_week"
     return "monitor"
 
+def _sanitize_text(text: str) -> str:
+    import re
+
+    replacements = {
+        r"cancer": "serious condition",
+        r"tumor": "abnormal growth",
+        r"malignant": "high-risk condition",
+        r"कैंसर": "गंभीर बीमारी",
+    }
+
+    for pattern, replacement in replacements.items():
+        text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+
+    return text
 
 async def _ask_symptom(sender: str, scan_type: str, step: int) -> None:
     """Send one symptom question with quick-reply buttons."""
@@ -302,6 +316,7 @@ async def handle_image(sender: str, image_id: str) -> None:
         f"📍 *नजदीकी केंद्र:* {_DEFAULT_MAPS_LINK}\n\n"
         f"_{DISCLAIMER['hi']}_"
     )
+    reply = _sanitize_text(reply)
     check_for_banned_words(reply)
     await send_message(sender, reply)
 

@@ -39,6 +39,7 @@ class ApiService {
         'image_base64': base64Encode(imageBytes),
         'scan_type':    scanType,
         'symptoms':     symptoms,
+        'skip_quality_check': true,
         if (latitude  != null) 'latitude':  latitude,
         if (longitude != null) 'longitude': longitude,
       });

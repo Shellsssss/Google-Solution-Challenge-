@@ -18,15 +18,20 @@ import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
 
 class ResultScreen extends StatefulWidget {
-  final Uint8List    imageBytes;
+  /// Photo bytes. Null when the screen is opened from History (image was
+  /// not persisted) — the PDF will be regenerated without the photo.
+  final Uint8List?   imageBytes;
   final ScanResult   result;
   final PatientInfo? patientInfo;
+  /// True when navigated from the History tab — disables auto-save to DB.
+  final bool         fromHistory;
 
   const ResultScreen({
     super.key,
-    required this.imageBytes,
+    this.imageBytes,
     required this.result,
     this.patientInfo,
+    this.fromHistory = false,
   });
 
   @override
@@ -55,7 +60,14 @@ class _ResultScreenState extends State<ResultScreen> {
   }
 
   Future<void> _saveLocally() async {
-    try { await DatabaseService().saveScan(widget.result); } catch (_) {}
+    if (widget.fromHistory) return;
+    try {
+      // Persist the photo with the scan so re-generated PDFs (from History) include the image.
+      final toSave = widget.imageBytes != null
+          ? widget.result.copyWith(imageBytes: widget.imageBytes)
+          : widget.result;
+      await DatabaseService().saveScan(toSave);
+    } catch (_) {}
   }
 
   Future<void> _toggleTts() async {
@@ -79,6 +91,8 @@ class _ResultScreenState extends State<ResultScreen> {
   Map<String, dynamic> _buildPayload(String lang) {
     final result  = widget.result;
     final patient = widget.patientInfo;
+    // Prefer fresh-scan bytes; fall back to bytes saved in history.
+    final imageBytes = widget.imageBytes ?? result.imageBytes;
     return {
       'scan_type':          result.scanType.name,
       'risk_level':         result.riskKey,
@@ -87,7 +101,8 @@ class _ResultScreenState extends State<ResultScreen> {
       'explanation_local':  result.explanationFor(lang),
       'local_language':     lang,
       'concern':            _concernText(result.riskLevel, lang),
-      'image_base64':       base64Encode(widget.imageBytes),
+      if (imageBytes != null)
+        'image_base64':     base64Encode(imageBytes),
       if (patient != null) ...{
         'user_name':    patient.name,
         'phone_masked': patient.phoneMasked,
@@ -191,7 +206,7 @@ class _ResultScreenState extends State<ResultScreen> {
     return Scaffold(
       backgroundColor: JaColors.bg,
       appBar: AppBar(
-        title: Text('Your result',
+        title: Text(s.resultAppbarTitle,
             style: GoogleFonts.nunito(fontSize: 20, fontWeight: FontWeight.w800, color: JaColors.ink)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -209,12 +224,12 @@ class _ResultScreenState extends State<ResultScreen> {
             constraints: const BoxConstraints(maxWidth: 600),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               // ── Result hero card ───────────────────────────────────────
-              _ResultHero(result: result),
+              _ResultHero(result: result, s: s),
               const SizedBox(height: 20),
 
               // ── Confidence bar ─────────────────────────────────────────
               if (result.riskLevel != RiskLevel.invalid) ...[
-                _ConfidenceBar(confidence: result.confidence),
+                _ConfidenceBar(confidence: result.confidence, s: s),
                 const SizedBox(height: 20),
               ],
 
@@ -223,18 +238,19 @@ class _ResultScreenState extends State<ResultScreen> {
                 text: result.explanationFor(lang),
                 speaking: _speaking,
                 onTts: _toggleTts,
+                s: s,
               ),
               const SizedBox(height: 16),
 
               // ── Next steps (high risk only) ────────────────────────────
               if (result.riskLevel == RiskLevel.high) ...[
-                _NextStepsCard(onFindClinic: _openMaps),
+                _NextStepsCard(onFindClinic: _openMaps, s: s),
                 const SizedBox(height: 16),
               ],
 
               // ── Symptoms summary ───────────────────────────────────────
               if (result.symptoms != null && result.symptoms!.isNotEmpty) ...[
-                _SymptomsCard(symptoms: result.symptoms!),
+                _SymptomsCard(symptoms: result.symptoms!, s: s),
                 const SizedBox(height: 16),
               ],
 
@@ -288,7 +304,8 @@ class _ResultScreenState extends State<ResultScreen> {
 // ── Result hero ───────────────────────────────────────────────────────────────
 class _ResultHero extends StatelessWidget {
   final ScanResult result;
-  const _ResultHero({required this.result});
+  final AppStrings s;
+  const _ResultHero({required this.result, required this.s});
 
   @override
   Widget build(BuildContext context) {
@@ -297,22 +314,22 @@ class _ResultHero extends StatelessWidget {
         JaColors.brandSoft,
         JaColors.brand,
         Icons.check_circle_outline,
-        'Looks fine',
-        'No signs of concern were found.',
+        s.resultLowHeadline,
+        s.resultLowSub,
       ),
       RiskLevel.high => (
         JaColors.dangerSoft,
         JaColors.danger,
         Icons.warning_amber_outlined,
-        'Please see a doctor',
-        'Something needs a closer look.',
+        s.resultHighHeadline,
+        s.resultHighSub,
       ),
       RiskLevel.invalid => (
         JaColors.warnSoft,
         JaColors.warn,
         Icons.camera_alt_outlined,
-        'Photo unclear',
-        'Retake in good light and try again.',
+        s.resultInvalidHeadline,
+        s.resultInvalidSub,
       ),
     };
 
@@ -353,7 +370,7 @@ class _ResultHero extends StatelessWidget {
             border: Border.all(color: JaColors.line),
           ),
           child: Text(
-            result.scanType == ScanType.oral ? 'Oral screening' : 'Skin screening',
+            result.scanType == ScanType.oral ? s.resultOralScreening : s.resultSkinScreening,
             style: GoogleFonts.notoSans(fontSize: 13, fontWeight: FontWeight.w700, color: JaColors.inkSoft),
           ),
         ),
@@ -364,8 +381,9 @@ class _ResultHero extends StatelessWidget {
 
 // ── Confidence bar ────────────────────────────────────────────────────────────
 class _ConfidenceBar extends StatelessWidget {
+  final AppStrings s;
   final double confidence;
-  const _ConfidenceBar({required this.confidence});
+  const _ConfidenceBar({required this.confidence, required this.s});
 
   @override
   Widget build(BuildContext context) {
@@ -379,7 +397,7 @@ class _ConfidenceBar extends StatelessWidget {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text('Model confidence',
+          Text(s.resultModelConfidence,
               style: GoogleFonts.notoSans(fontSize: 13, fontWeight: FontWeight.w700, color: JaColors.inkSoft)),
           Text('$pct%',
               style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w800, color: JaColors.brand)),
@@ -404,7 +422,8 @@ class _ExplanationCard extends StatelessWidget {
   final String text;
   final bool speaking;
   final VoidCallback onTts;
-  const _ExplanationCard({required this.text, required this.speaking, required this.onTts});
+  final AppStrings s;
+  const _ExplanationCard({required this.text, required this.speaking, required this.onTts, required this.s});
 
   @override
   Widget build(BuildContext context) {
@@ -417,7 +436,7 @@ class _ExplanationCard extends StatelessWidget {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text('What this means',
+          Text(s.resultWhatThisMeans,
               style: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w700, color: JaColors.ink)),
           GestureDetector(
             onTap: onTts,
@@ -447,14 +466,15 @@ class _ExplanationCard extends StatelessWidget {
 // ── Next steps (high risk) ────────────────────────────────────────────────────
 class _NextStepsCard extends StatelessWidget {
   final VoidCallback onFindClinic;
-  const _NextStepsCard({required this.onFindClinic});
+  final AppStrings s;
+  const _NextStepsCard({required this.onFindClinic, required this.s});
 
   @override
   Widget build(BuildContext context) {
     final steps = [
-      (Icons.local_hospital_outlined, 'Visit a doctor', 'Show them this result screen or download the PDF report.'),
-      (Icons.location_on_outlined,    'Find a free clinic', 'Government centres offer free cancer checks near you.'),
-      (Icons.download_outlined,       'Download your report', 'Save a PDF to share with any doctor or health worker.'),
+      (Icons.local_hospital_outlined, s.nextStep1Title, s.nextStep1Desc),
+      (Icons.location_on_outlined,    s.nextStep2Title, s.nextStep2Desc),
+      (Icons.download_outlined,       s.nextStep3Title, s.nextStep3Desc),
     ];
     return Container(
       padding: const EdgeInsets.all(18),
@@ -464,7 +484,7 @@ class _NextStepsCard extends StatelessWidget {
         border: Border.all(color: JaColors.danger.withValues(alpha: 0.2)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('What to do next',
+        Text(s.resultWhatToDoNext,
             style: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w700, color: JaColors.ink)),
         const SizedBox(height: 14),
         for (final (icon, title, desc) in steps) ...[
@@ -497,7 +517,8 @@ class _NextStepsCard extends StatelessWidget {
 // ── Symptoms card ─────────────────────────────────────────────────────────────
 class _SymptomsCard extends StatelessWidget {
   final Map<String, String> symptoms;
-  const _SymptomsCard({required this.symptoms});
+  final AppStrings s;
+  const _SymptomsCard({required this.symptoms, required this.s});
 
   @override
   Widget build(BuildContext context) {
@@ -509,7 +530,7 @@ class _SymptomsCard extends StatelessWidget {
         border: Border.all(color: JaColors.line),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Reported symptoms',
+        Text(s.resultReportedSymptoms,
             style: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w700, color: JaColors.ink)),
         const SizedBox(height: 10),
         for (final e in symptoms.entries)

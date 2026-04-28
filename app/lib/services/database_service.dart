@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import '../models/scan_result.dart';
@@ -9,6 +10,11 @@ class DatabaseService {
 
   Database? _db;
 
+  /// Increments whenever the scans table changes.
+  /// HistoryScreen listens to this so it reloads after every new scan,
+  /// even when kept alive in an IndexedStack.
+  final ValueNotifier<int> changes = ValueNotifier<int>(0);
+
   Future<Database> get _database async {
     _db ??= await _init();
     return _db!;
@@ -18,10 +24,13 @@ class DatabaseService {
     final path = join(await getDatabasesPath(), 'janarogya_v2.db');
     return openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: (db, _) => _createTables(db),
       onUpgrade: (db, oldV, _) async {
         if (oldV < 2) await _createTables(db);
+        if (oldV < 3) {
+          await db.execute('ALTER TABLE scans ADD COLUMN image_bytes BLOB');
+        }
       },
     );
   }
@@ -37,14 +46,15 @@ class DatabaseService {
         explanation_hi TEXT    NOT NULL DEFAULT '',
         explanation_ta TEXT    NOT NULL DEFAULT '',
         explanation_te TEXT    NOT NULL DEFAULT '',
-        timestamp      TEXT    NOT NULL
+        timestamp      TEXT    NOT NULL,
+        image_bytes    BLOB
       )
     ''');
   }
 
   Future<int> saveScan(ScanResult result) async {
     final db = await _database;
-    return db.insert('scans', {
+    final id = await db.insert('scans', {
       'scan_type':      result.scanType.name,
       'risk_level':     result.riskLevel.name,
       'confidence':     result.confidence,
@@ -53,7 +63,10 @@ class DatabaseService {
       'explanation_ta': result.explanationTa,
       'explanation_te': result.explanationTe,
       'timestamp':      result.timestamp.toIso8601String(),
+      if (result.imageBytes != null) 'image_bytes': result.imageBytes,
     });
+    changes.value++;
+    return id;
   }
 
   Future<List<ScanResult>> getHistory({int limit = 50}) async {
@@ -65,6 +78,7 @@ class DatabaseService {
   Future<void> clearHistory() async {
     final db = await _database;
     await db.delete('scans');
+    changes.value++;
   }
 
   ScanResult _row(Map<String, dynamic> r) => ScanResult(
@@ -78,5 +92,6 @@ class DatabaseService {
     explanationTa: r['explanation_ta'] as String? ?? '',
     explanationTe: r['explanation_te'] as String? ?? '',
     timestamp:     DateTime.parse(r['timestamp'] as String),
+    imageBytes:    r['image_bytes'] as Uint8List?,
   );
 }

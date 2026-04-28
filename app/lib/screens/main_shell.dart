@@ -63,15 +63,15 @@ class _MainShellState extends State<MainShell> {
               activeIcon: const Icon(Icons.camera_alt),
               label: s.navScan,
             ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.local_hospital_outlined),
-              activeIcon: Icon(Icons.local_hospital),
-              label: 'Clinics',
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.local_hospital_outlined),
+              activeIcon: const Icon(Icons.local_hospital),
+              label: s.navClinics,
             ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.map_outlined),
-              activeIcon: Icon(Icons.map),
-              label: 'Community',
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.map_outlined),
+              activeIcon: const Icon(Icons.map),
+              label: s.navCommunity,
             ),
             const BottomNavigationBarItem(
               icon: Icon(Icons.chat_bubble_outline),
