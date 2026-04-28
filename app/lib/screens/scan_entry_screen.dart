@@ -123,7 +123,6 @@ class _ScanEntryScreenState extends State<ScanEntryScreen> {
               const SizedBox(height: 28),
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 250),
-<<<<<<< HEAD
                 child: switch (_step) {
                   0 => _StepPickType(
                       key: const ValueKey(0),
@@ -171,29 +170,6 @@ class _ScanEntryScreenState extends State<ScanEntryScreen> {
                       onFinish: _finish,
                     ),
                 },
-=======
-                child: _step == 0
-                    ? _StepPickType(
-                        key: const ValueKey(0),
-                        selected: _typePicked ? _scanType : null,
-                        onSelect: (t) => setState(() { _scanType = t; _typePicked = true; }),
-                        onNext: () => setState(() => _step = 1),
-                        s: AppStrings(context.watch<AppProvider>().langCode),
-                      )
-                    : _StepUpload(
-                        key: const ValueKey(1),
-                        scanType: _scanType,
-                        imageBytes: _imageBytes,
-                        fileName: _fileName,
-                        picking: _picking,
-                        onCamera: () => _pickImage(ImageSource.camera),
-                        onGallery: () => _pickImage(ImageSource.gallery),
-                        onClear: () => setState(() { _imageBytes = null; _fileName = null; }),
-                        onBack: () => setState(() => _step = 0),
-                        onProceed: _proceed,
-                        s: AppStrings(context.watch<AppProvider>().langCode),
-                      ),
->>>>>>> challenge/main
               ),
             ]),
           ),
