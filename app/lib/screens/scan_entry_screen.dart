@@ -311,9 +311,9 @@ class _StepUpload extends StatelessWidget {
       Text('Step 2 of 4 — ${scanType == ScanType.oral ? s.scanPickMouth : s.scanPickSkin}',
           style: GoogleFonts.notoSans(fontSize: 13, fontWeight: FontWeight.w700, color: JaColors.inkSoft, letterSpacing: 0.5)),
       const SizedBox(height: 8),
-      Text(s.scanTakePhoto, style: GoogleFonts.nunito(fontSize: 26, fontWeight: FontWeight.w800, color: JaColors.ink)),
+      Text(s.scanTakePhotoTitle, style: GoogleFonts.nunito(fontSize: 26, fontWeight: FontWeight.w800, color: JaColors.ink)),
       const SizedBox(height: 6),
-      Text(s.scanPhotoHint, style: GoogleFonts.notoSans(fontSize: 15, color: JaColors.inkSoft)),
+      Text(s.scanTakePhotoSub, style: GoogleFonts.notoSans(fontSize: 15, color: JaColors.inkSoft)),
       const SizedBox(height: 20),
       GestureDetector(
         onTap: picking ? null : onCamera,
