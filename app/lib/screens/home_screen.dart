@@ -20,20 +20,11 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-<<<<<<< HEAD
-            _HeroSection(lang: lang),
-            _DualCtaSection(lang: lang),
-            _ReassureStrip(lang: lang),
-            _HowItWorksSection(lang: lang),
-            _FaqSection(lang: lang),
-=======
             _HeroSection(s: s),
             _DualCtaSection(s: s),
             _ReassureStrip(s: s),
             _HowItWorksSection(s: s),
-            _QuoteBand(s: s),
             _FaqSection(s: s),
->>>>>>> challenge/main
             const SizedBox(height: 40),
           ],
         ),
