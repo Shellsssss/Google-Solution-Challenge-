@@ -94,6 +94,7 @@ class _ScanEntryScreenState extends State<ScanEntryScreen> {
                         selected: _typePicked ? _scanType : null,
                         onSelect: (t) => setState(() { _scanType = t; _typePicked = true; }),
                         onNext: () => setState(() => _step = 1),
+                        s: AppStrings(context.watch<AppProvider>().langCode),
                       )
                     : _StepUpload(
                         key: const ValueKey(1),
@@ -106,6 +107,7 @@ class _ScanEntryScreenState extends State<ScanEntryScreen> {
                         onClear: () => setState(() { _imageBytes = null; _fileName = null; }),
                         onBack: () => setState(() => _step = 0),
                         onProceed: _proceed,
+                        s: AppStrings(context.watch<AppProvider>().langCode),
                       ),
               ),
             ]),
@@ -141,30 +143,31 @@ class _StepPickType extends StatelessWidget {
   final ScanType? selected;
   final ValueChanged<ScanType> onSelect;
   final VoidCallback onNext;
-  const _StepPickType({super.key, required this.selected, required this.onSelect, required this.onNext});
+  final AppStrings s;
+  const _StepPickType({super.key, required this.selected, required this.onSelect, required this.onNext, required this.s});
 
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Step 1 of 3', style: GoogleFonts.notoSans(fontSize: 13, fontWeight: FontWeight.w700, color: JaColors.inkSoft, letterSpacing: 0.5)),
+      Text(s.scanStep1Of3, style: GoogleFonts.notoSans(fontSize: 13, fontWeight: FontWeight.w700, color: JaColors.inkSoft, letterSpacing: 0.5)),
       const SizedBox(height: 8),
-      Text('What do you want to check?', style: GoogleFonts.nunito(fontSize: 26, fontWeight: FontWeight.w800, color: JaColors.ink)),
+      Text(s.scanWhatToCheck, style: GoogleFonts.nunito(fontSize: 26, fontWeight: FontWeight.w800, color: JaColors.ink)),
       const SizedBox(height: 6),
-      Text('Pick one. You can check the other one later.', style: GoogleFonts.notoSans(fontSize: 15, color: JaColors.inkSoft)),
+      Text(s.scanPickOne, style: GoogleFonts.notoSans(fontSize: 15, color: JaColors.inkSoft)),
       const SizedBox(height: 24),
       Row(children: [
         Expanded(child: _PickCard(
           icon: Icons.sentiment_satisfied_alt_outlined,
-          title: 'My mouth',
-          subtitle: 'Lips, tongue, inside cheek',
+          title: s.scanPickMouth,
+          subtitle: s.scanPickMouthSub,
           selected: selected == ScanType.oral,
           onTap: () => onSelect(ScanType.oral),
         )),
         const SizedBox(width: 14),
         Expanded(child: _PickCard(
           icon: Icons.wb_sunny_outlined,
-          title: 'My skin',
-          subtitle: 'A mark, mole or patch',
+          title: s.scanPickSkin,
+          subtitle: s.scanPickSkinSub,
           selected: selected == ScanType.skin,
           onTap: () => onSelect(ScanType.skin),
         )),
@@ -183,7 +186,7 @@ class _StepPickType extends StatelessWidget {
             textStyle: GoogleFonts.nunito(fontSize: 20, fontWeight: FontWeight.w700),
           ),
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Text('Next'),
+            Text(s.scanNext),
             const SizedBox(width: 8),
             const Icon(Icons.arrow_forward, size: 20),
           ]),
@@ -238,18 +241,20 @@ class _StepUpload extends StatelessWidget {
   final String? fileName;
   final bool picking;
   final VoidCallback onCamera, onGallery, onClear, onBack, onProceed;
-  const _StepUpload({super.key, required this.scanType, required this.imageBytes, required this.fileName, required this.picking, required this.onCamera, required this.onGallery, required this.onClear, required this.onBack, required this.onProceed});
+  final AppStrings s;
+  const _StepUpload({super.key, required this.scanType, required this.imageBytes, required this.fileName, required this.picking, required this.onCamera, required this.onGallery, required this.onClear, required this.onBack, required this.onProceed, required this.s});
 
   @override
   Widget build(BuildContext context) {
     final hasImage = imageBytes != null;
+    final partLabel = scanType == ScanType.oral ? s.scanPickMouth : s.scanPickSkin;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Step 2 of 3 — ${scanType == ScanType.oral ? "Mouth" : "Skin"}',
+      Text('${s.scanStep2Of3} — $partLabel',
           style: GoogleFonts.notoSans(fontSize: 13, fontWeight: FontWeight.w700, color: JaColors.inkSoft, letterSpacing: 0.5)),
       const SizedBox(height: 8),
-      Text('Take a photo', style: GoogleFonts.nunito(fontSize: 26, fontWeight: FontWeight.w800, color: JaColors.ink)),
+      Text(s.scanTakePhotoTitle, style: GoogleFonts.nunito(fontSize: 26, fontWeight: FontWeight.w800, color: JaColors.ink)),
       const SizedBox(height: 6),
-      Text('Bring the spot close. Use good light. You can also upload a photo.',
+      Text(s.scanTakePhotoSub,
           style: GoogleFonts.notoSans(fontSize: 15, color: JaColors.inkSoft)),
       const SizedBox(height: 20),
 
@@ -289,7 +294,7 @@ class _StepUpload extends StatelessWidget {
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
                         const Icon(Icons.check, color: Colors.white, size: 16),
                         const SizedBox(width: 6),
-                        Text('Photo added', style: GoogleFonts.notoSans(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+                        Text(s.scanPhotoAdded, style: GoogleFonts.notoSans(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
                       ]),
                     )),
                 ])
@@ -301,9 +306,9 @@ class _StepUpload extends StatelessWidget {
                     child: const Icon(Icons.camera_alt_outlined, color: JaColors.brand, size: 36),
                   ),
                   const SizedBox(height: 14),
-                  Text('Tap to take a photo', style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w700, color: JaColors.ink)),
+                  Text(s.scanTapToTake, style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w700, color: JaColors.ink)),
                   const SizedBox(height: 4),
-                  Text('or choose a photo from your phone', style: GoogleFonts.notoSans(fontSize: 14, color: JaColors.inkSoft)),
+                  Text(s.scanOrUpload, style: GoogleFonts.notoSans(fontSize: 14, color: JaColors.inkSoft)),
                 ]),
         ),
       ),
@@ -315,7 +320,7 @@ class _StepUpload extends StatelessWidget {
           child: OutlinedButton.icon(
             onPressed: picking ? null : onGallery,
             icon: const Icon(Icons.photo_library_outlined),
-            label: const Text('Choose from gallery'),
+            label: Text(s.scanChooseGallery),
             style: OutlinedButton.styleFrom(
               foregroundColor: JaColors.brand,
               side: const BorderSide(color: JaColors.brand, width: 1.5),
@@ -337,9 +342,9 @@ class _StepUpload extends StatelessWidget {
           border: const Border(left: BorderSide(color: JaColors.warn, width: 4)),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Tips for a clear photo', style: GoogleFonts.notoSans(fontSize: 14, fontWeight: FontWeight.w700, color: JaColors.ink)),
+          Text(s.scanTipsTitle, style: GoogleFonts.notoSans(fontSize: 14, fontWeight: FontWeight.w700, color: JaColors.ink)),
           const SizedBox(height: 6),
-          for (final tip in ['Good daylight or a bright lamp', 'Hold the phone 15–20 cm away', 'Don\'t use filters or flash'])
+          for (final tip in [s.scanTip1, s.scanTip2, s.scanTip3])
             Padding(
               padding: const EdgeInsets.only(top: 3),
               child: Text('• $tip', style: GoogleFonts.notoSans(fontSize: 14, color: JaColors.ink)),
@@ -360,7 +365,7 @@ class _StepUpload extends StatelessWidget {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               textStyle: GoogleFonts.notoSans(fontSize: 16, fontWeight: FontWeight.w600),
             ),
-            child: const Text('Back'),
+            child: Text(s.scanBack),
           ),
         ),
         const SizedBox(width: 12),
@@ -376,7 +381,7 @@ class _StepUpload extends StatelessWidget {
               textStyle: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w700),
             ),
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              const Text('Check my photo'),
+              Text(s.scanCheckMyPhoto),
               const SizedBox(width: 8),
               const Icon(Icons.arrow_forward, size: 20),
             ]),

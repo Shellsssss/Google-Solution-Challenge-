@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../l10n/app_strings.dart';
+import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 
 class ClinicsScreen extends StatefulWidget {
@@ -22,12 +25,13 @@ class _ClinicsScreenState extends State<ClinicsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppStrings(context.watch<AppProvider>().langCode);
     return Scaffold(
       backgroundColor: JaColors.bg,
       appBar: AppBar(
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Nearest clinics', style: GoogleFonts.nunito(fontSize: 22, fontWeight: FontWeight.w800, color: JaColors.ink)),
-          Text('Free and subsidised centres near you', style: GoogleFonts.notoSans(fontSize: 12, color: JaColors.inkSoft)),
+          Text(s.clinicsTitle, style: GoogleFonts.nunito(fontSize: 22, fontWeight: FontWeight.w800, color: JaColors.ink)),
+          Text(s.clinicsSubtitle, style: GoogleFonts.notoSans(fontSize: 12, color: JaColors.inkSoft)),
         ]),
         bottom: PreferredSize(preferredSize: const Size.fromHeight(1), child: Container(height: 1, color: JaColors.line)),
       ),
@@ -38,7 +42,7 @@ class _ClinicsScreenState extends State<ClinicsScreen> {
           child: TextField(
             controller: _search,
             decoration: InputDecoration(
-              hintText: 'Search by village or district',
+              hintText: s.clinicsSearchHint,
               prefixIcon: const Icon(Icons.search, color: JaColors.inkSoft),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: JaColors.line)),
               enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: JaColors.line)),
@@ -62,7 +66,7 @@ class _ClinicsScreenState extends State<ClinicsScreen> {
             CustomPaint(size: const Size(double.infinity, 180), painter: _MapGridPainter()),
             // "You" pin
             Positioned(left: MediaQuery.of(context).size.width * 0.4, top: 70,
-              child: _MapPin(label: 'You', color: JaColors.accent)),
+              child: _MapPin(label: s.clinicsYouLabel, color: JaColors.accent)),
             // Clinic pins
             const Positioned(left: 60, top: 40, child: _MapPin(label: '1', color: JaColors.brand)),
             const Positioned(right: 60, top: 90, child: _MapPin(label: '2', color: JaColors.brand)),
@@ -87,6 +91,7 @@ class _ClinicsScreenState extends State<ClinicsScreen> {
               clinic: _clinics[i],
               active: _active == i,
               onTap: () => setState(() => _active = i),
+              s: s,
             ),
           ),
         ),
@@ -104,7 +109,8 @@ class _ClinicCard extends StatelessWidget {
   final _Clinic clinic;
   final bool active;
   final VoidCallback onTap;
-  const _ClinicCard({required this.clinic, required this.active, required this.onTap});
+  final AppStrings s;
+  const _ClinicCard({required this.clinic, required this.active, required this.onTap, required this.s});
 
   @override
   Widget build(BuildContext context) {
@@ -127,10 +133,10 @@ class _ClinicCard extends StatelessWidget {
           Text(clinic.meta, style: GoogleFonts.notoSans(fontSize: 13, color: JaColors.inkSoft)),
           const SizedBox(height: 12),
           Row(children: [
-            _SmallBtn(label: 'Directions', icon: Icons.directions, onTap: () {}),
+            _SmallBtn(label: s.clinicsDirections, icon: Icons.directions, onTap: () {}),
             const SizedBox(width: 8),
             _SmallBtn(
-              label: 'Call',
+              label: s.clinicsCall,
               icon: Icons.phone,
               outline: true,
               onTap: () async {

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_strings.dart';
 import '../providers/app_provider.dart';
+import '../services/auth_service.dart';
 import '../services/database_service.dart';
 import '../theme/app_theme.dart';
 
@@ -23,6 +25,11 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Account section (signed-in user)
+          _SectionHeader(title: s.account),
+          _AccountTile(s: s),
+          const SizedBox(height: 16),
+
           // Language section
           _SectionHeader(title: s.settingsLanguage),
           _LangTile(),
@@ -39,7 +46,7 @@ class SettingsScreen extends StatelessWidget {
             icon: Icons.phone_outlined,
             iconColor: context.danger,
             title: s.helplineNumber,
-            subtitle: 'Toll-Free 24/7',
+            subtitle: s.tollFree247,
             onTap: () async {
               final uri = Uri(scheme: 'tel', path: '18001112345');
               if (await canLaunchUrl(uri)) await launchUrl(uri);
@@ -82,7 +89,7 @@ class SettingsScreen extends StatelessWidget {
                 await DatabaseService().clearHistory();
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('History cleared')),
+                    SnackBar(content: Text(s.historyClearedMsg)),
                   );
                 }
               }
@@ -276,6 +283,95 @@ class _InfoCard extends StatelessWidget {
               color: context.textSec, size: 14),
         ]),
       ),
+    );
+  }
+}
+
+// ── Account tile ─────────────────────────────────────────────────────────────
+class _AccountTile extends StatelessWidget {
+  final AppStrings s;
+  const _AccountTile({required this.s});
+
+  @override
+  Widget build(BuildContext context) {
+    final user = AuthService.instance.currentUser;
+    final name  = user?.displayName ?? '';
+    final email = user?.email ?? '';
+    final photo = user?.photoURL;
+    final initial = (name.isNotEmpty ? name : email).isNotEmpty
+        ? (name.isNotEmpty ? name : email)[0].toUpperCase()
+        : '?';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: context.cardBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: JaColors.line),
+      ),
+      child: Row(children: [
+        // Avatar
+        CircleAvatar(
+          radius: 22,
+          backgroundColor: JaColors.brandSoft,
+          backgroundImage: photo != null ? NetworkImage(photo) : null,
+          child: photo == null
+              ? Text(initial,
+                  style: GoogleFonts.nunito(
+                    fontSize: 18, fontWeight: FontWeight.w800, color: JaColors.brand,
+                  ))
+              : null,
+        ),
+        const SizedBox(width: 12),
+        // Name + email
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (name.isNotEmpty)
+                Text(name,
+                    style: TextStyle(
+                        color: context.textPrimary,
+                        fontSize: 15, fontWeight: FontWeight.w700)),
+              if (email.isNotEmpty)
+                Text(email,
+                    style: TextStyle(color: context.textSec, fontSize: 12)),
+            ],
+          ),
+        ),
+        // Sign-out
+        TextButton.icon(
+          onPressed: () async {
+            final confirmed = await showDialog<bool>(
+              context: context,
+              builder: (_) => AlertDialog(
+                backgroundColor: context.cardBg,
+                title: Text(s.signOut,
+                    style: TextStyle(color: context.textPrimary)),
+                content: Text(s.signOutConfirm,
+                    style: TextStyle(color: context.textSec)),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: Text(s.actionCancel),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: TextButton.styleFrom(foregroundColor: context.danger),
+                    child: Text(s.signOut),
+                  ),
+                ],
+              ),
+            );
+            if (confirmed == true) {
+              await AuthService.instance.signOut();
+            }
+          },
+          icon: Icon(Icons.logout, size: 16, color: context.danger),
+          label: Text(s.signOut,
+              style: TextStyle(color: context.danger, fontWeight: FontWeight.w700)),
+        ),
+      ]),
     );
   }
 }

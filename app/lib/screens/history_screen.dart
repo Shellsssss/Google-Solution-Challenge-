@@ -7,6 +7,7 @@ import '../models/scan_result.dart';
 import '../providers/app_provider.dart';
 import '../services/database_service.dart';
 import '../theme/app_theme.dart';
+import 'result_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -24,10 +25,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
   void initState() {
     super.initState();
     _load();
+    DatabaseService().changes.addListener(_load);
+  }
+
+  @override
+  void dispose() {
+    DatabaseService().changes.removeListener(_load);
+    super.dispose();
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    if (mounted) setState(() => _loading = true);
     final rows = await DatabaseService().getHistory();
     if (mounted) setState(() { _all = rows; _loading = false; });
   }
@@ -54,7 +62,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Scaffold(
       backgroundColor: JaColors.bg,
       appBar: AppBar(
-        title: Text('Past checks',
+        title: Text(s.historyTitle,
             style: GoogleFonts.nunito(fontSize: 22, fontWeight: FontWeight.w800, color: JaColors.ink)),
         automaticallyImplyLeading: false,
         actions: [
@@ -103,51 +111,62 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 final (bg, fg, icon, label) = _riskStyle(r.riskLevel, s);
                 final dateStr = DateFormat('dd MMM yyyy, hh:mm a').format(r.timestamp);
 
-                return Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: JaColors.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: JaColors.line),
-                    boxShadow: JaColors.cardShadow,
-                  ),
-                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    // Icon circle
-                    Container(
-                      width: 48, height: 48,
-                      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
-                      child: Icon(icon, color: fg, size: 22),
+                return InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ResultScreen(result: r, fromHistory: true),
                     ),
-                    const SizedBox(width: 14),
-                    // Main info
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Row(children: [
-                        Text(r.scanLabel,
-                            style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w700, color: JaColors.ink)),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: bg,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: fg.withValues(alpha: 0.3)),
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: JaColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: JaColors.line),
+                      boxShadow: JaColors.cardShadow,
+                    ),
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      // Icon circle
+                      Container(
+                        width: 48, height: 48,
+                        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
+                        child: Icon(icon, color: fg, size: 22),
+                      ),
+                      const SizedBox(width: 14),
+                      // Main info
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Row(children: [
+                          Text(r.scanLabel,
+                              style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w700, color: JaColors.ink)),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: bg,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: fg.withValues(alpha: 0.3)),
+                            ),
+                            child: Text(label,
+                                style: GoogleFonts.notoSans(fontSize: 11, fontWeight: FontWeight.w700, color: fg)),
                           ),
-                          child: Text(label,
-                              style: GoogleFonts.notoSans(fontSize: 11, fontWeight: FontWeight.w700, color: fg)),
-                        ),
+                        ]),
+                        const SizedBox(height: 4),
+                        Text(dateStr,
+                            style: GoogleFonts.notoSans(fontSize: 12, color: JaColors.inkSoft)),
+                      ])),
+                      // Confidence
+                      Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                        Text('${(r.confidence * 100).toStringAsFixed(0)}%',
+                            style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w800, color: fg)),
+                        Text(s.historyConfidence,
+                            style: GoogleFonts.notoSans(fontSize: 11, color: JaColors.inkSoft)),
                       ]),
-                      const SizedBox(height: 4),
-                      Text(dateStr,
-                          style: GoogleFonts.notoSans(fontSize: 12, color: JaColors.inkSoft)),
-                    ])),
-                    // Confidence
-                    Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                      Text('${(r.confidence * 100).toStringAsFixed(0)}%',
-                          style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w800, color: fg)),
-                      Text('confidence',
-                          style: GoogleFonts.notoSans(fontSize: 11, color: JaColors.inkSoft)),
+                      const SizedBox(width: 6),
+                      Icon(Icons.chevron_right, color: JaColors.inkSoft, size: 22),
                     ]),
-                  ]),
+                  ),
                 );
               },
             ),

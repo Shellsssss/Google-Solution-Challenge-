@@ -183,7 +183,7 @@ class _ScanScreenState extends State<ScanScreen> {
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
                           Icon(Icons.cloud_off_outlined, size: 16, color: context.warning),
                           const SizedBox(width: 6),
-                          Text('Cloud AI unavailable — using on-device result',
+                          Text(s.cloudUnavailable,
                               style: TextStyle(fontSize: 12, color: context.warning)),
                         ]),
                       ),

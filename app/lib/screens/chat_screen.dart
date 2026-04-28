@@ -132,7 +132,7 @@ class _ChatScreenState extends State<ChatScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(s.chatTitle),
-            Text('AI Health Assistant',
+            Text(s.chatHeaderTitle,
                 style: TextStyle(
                     color: context.textSec, fontSize: 11,
                     fontWeight: FontWeight.normal)),
@@ -293,7 +293,7 @@ class _WelcomeState extends StatelessWidget {
           const SizedBox(height: 32),
 
           // Suggestion chips
-          Text('Try asking:',
+          Text(s.chatTryAsking,
               style: TextStyle(
                   color: context.textSec, fontSize: 12,
                   fontWeight: FontWeight.w500)),

@@ -275,7 +275,7 @@ class _SavedProfileCard extends StatelessWidget {
             children: [
               Icon(Icons.check_circle, color: context.accent, size: 18),
               const SizedBox(width: 8),
-              Text('Using saved profile',
+              Text(s.patientUsingSaved,
                   style: TextStyle(
                       color: context.accent,
                       fontSize: 13, fontWeight: FontWeight.w600)),
